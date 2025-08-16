@@ -8,10 +8,11 @@ const SearchSection = ({ selectedSongs, onSongSelect }) => {
   const [timeouts, setTimeouts] = useState([null, null])
 
   const handleSearch = async (query, index) => {
-    console.log(`Searching for: "${query}" in index ${index}`)
+    console.log(`🔍 Searching for: "${query}" in index ${index}`)
+    console.log(`🔍 Query length: ${query.length}, trimmed: "${query.trim()}"`)
     
     if (!query.trim()) {
-      console.log('Empty query, clearing results')
+      console.log('❌ Empty query, clearing results')
       setSearchResults(prev => {
         const newResults = [...prev]
         newResults[index] = []
@@ -27,17 +28,22 @@ const SearchSection = ({ selectedSongs, onSongSelect }) => {
     })
 
     try {
-      console.log('Calling searchSpotifyTracks...')
+      console.log('🌐 Calling searchSpotifyTracks...')
       const results = await searchSpotifyTracks(query)
-      console.log('Search results:', results)
+      console.log('✅ Search results received:', results)
+      console.log('✅ Results type:', typeof results)
+      console.log('✅ Results length:', Array.isArray(results) ? results.length : 'Not an array')
       
       setSearchResults(prev => {
         const newResults = [...prev]
         newResults[index] = results || []
+        console.log(`📊 Updated search results for index ${index}:`, newResults[index])
+        console.log(`📊 Full search results state:`, newResults)
         return newResults
       })
     } catch (error) {
-      console.error('Search error:', error)
+      console.error('❌ Search error:', error)
+      console.error('❌ Error details:', error.response?.data || error.message)
       setSearchResults(prev => {
         const newResults = [...prev]
         newResults[index] = []
@@ -53,11 +59,15 @@ const SearchSection = ({ selectedSongs, onSongSelect }) => {
   }
 
   const handleInputChange = (value, index) => {
-    console.log(`Input changed: "${value}" in index ${index}`)
+    console.log(`📝 Input changed: "${value}" in index ${index}`)
+    console.log(`📝 Value type: ${typeof value}`)
+    console.log(`📝 Value length: ${value.length}`)
+    console.log(`📝 Value trimmed: "${value.trim()}"`)
     
     setSearchQueries(prev => {
       const newQueries = [...prev]
       newQueries[index] = value
+      console.log(`📝 Updated search queries:`, newQueries)
       return newQueries
     })
 
@@ -68,6 +78,7 @@ const SearchSection = ({ selectedSongs, onSongSelect }) => {
 
     // Set new timeout for debounced search
     const timeoutId = setTimeout(() => {
+      console.log(`⏰ Timeout triggered for index ${index}, searching for: "${value}"`)
       handleSearch(value, index)
     }, 500)
 
@@ -86,11 +97,12 @@ const SearchSection = ({ selectedSongs, onSongSelect }) => {
       newQueries[index] = song.name
       return newQueries
     })
-    setSearchResults(prev => {
-      const newResults = [...prev]
-      newResults[index] = []
-      return newResults
-    })
+    // Don't clear search results - let users see what they searched for
+    // setSearchResults(prev => {
+    //   const newResults = [...prev]
+    //   newResults[index] = []
+    //   return newResults
+    // })
   }
 
   const getSelectedSongDisplay = (index) => {
@@ -119,6 +131,24 @@ const SearchSection = ({ selectedSongs, onSongSelect }) => {
 
   return (
     <div className="search-section">
+      {/* Debug Section */}
+      {process.env.NODE_ENV === 'development' && (
+        <div style={{ 
+          background: 'rgba(255, 0, 0, 0.1)', 
+          padding: '1rem', 
+          borderRadius: '8px', 
+          marginBottom: '1rem',
+          fontSize: '12px',
+          fontFamily: 'monospace'
+        }}>
+          <h4>🔍 Debug Info:</h4>
+          <div>Search Queries: {JSON.stringify(searchQueries)}</div>
+          <div>Search Results Lengths: {JSON.stringify(searchResults.map(r => r?.length || 0))}</div>
+          <div>Is Searching: {JSON.stringify(isSearching)}</div>
+          <div>Selected Songs: {JSON.stringify(selectedSongs.map(s => s?.name || null))}</div>
+        </div>
+      )}
+      
       <div className="search-grid">
         {[0, 1].map((index) => (
           <div key={index} className="search-item">
@@ -132,7 +162,10 @@ const SearchSection = ({ selectedSongs, onSongSelect }) => {
               className="search-input"
               placeholder={`Search for song ${index + 1}...`}
               value={searchQueries[index]}
-              onChange={(e) => handleInputChange(e.target.value, index)}
+              onChange={(e) => {
+                console.log(`🔤 Input onChange triggered for index ${index}:`, e.target.value)
+                handleInputChange(e.target.value, index)
+              }}
             />
 
             {selectedSongs[index] && getSelectedSongDisplay(index)}
@@ -143,11 +176,12 @@ const SearchSection = ({ selectedSongs, onSongSelect }) => {
               </div>
             )}
 
-            {searchResults[index] && searchResults[index].length > 0 && !selectedSongs[index] && (
+            {searchResults[index] && searchResults[index].length > 0 && (
               <div className="search-results">
                 <p style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: '0.5rem' }}>
                   Found {searchResults[index].length} results
                 </p>
+                {console.log(`🎯 Rendering ${searchResults[index].length} results for index ${index}:`, searchResults[index])}
                 {searchResults[index].map((track) => (
                   <div
                     key={track.id}
@@ -164,8 +198,9 @@ const SearchSection = ({ selectedSongs, onSongSelect }) => {
               </div>
             )}
 
-            {searchResults[index] && searchResults[index].length === 0 && searchQueries[index].length > 0 && !isSearching[index] && (
+            {(!searchResults[index] || searchResults[index].length === 0) && searchQueries[index].length > 0 && !isSearching[index] && (
               <div style={{ textAlign: 'center', marginTop: '1rem', opacity: 0.7 }}>
+                {console.log(`❌ No results found for index ${index}. Query: "${searchQueries[index]}", Results:`, searchResults[index], 'Type:', typeof searchResults[index])}
                 No results found
               </div>
             )}

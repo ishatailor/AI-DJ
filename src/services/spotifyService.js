@@ -35,25 +35,35 @@ const getAccessToken = async () => {
 
 export const searchSpotifyTracks = async (query) => {
   console.log('🔍 searchSpotifyTracks called with query:', query)
+  console.log('🔍 Query type:', typeof query)
+  console.log('🔍 Query length:', query.length)
   
   try {
     // Use the backend API instead of Spotify directly for demo purposes
     const apiUrl = `/api/search?q=${encodeURIComponent(query)}`
     console.log('🌐 Making API call to:', apiUrl)
+    console.log('🌐 Encoded query:', encodeURIComponent(query))
     
     const response = await axios.get(apiUrl)
     console.log('✅ API response received:', response)
+    console.log('✅ Response status:', response.status)
+    console.log('✅ Response data type:', typeof response.data)
+    console.log('✅ Response data length:', Array.isArray(response.data) ? response.data.length : 'Not an array')
     
     if (response.data && Array.isArray(response.data)) {
       console.log('📊 Search results:', response.data)
+      console.log('📊 First result:', response.data[0])
       return response.data
     } else {
       console.error('❌ Unexpected response format:', response.data)
+      console.error('❌ Response data type:', typeof response.data)
       return []
     }
   } catch (error) {
     console.error('❌ Error searching tracks:', error)
+    console.error('❌ Error response:', error.response)
     console.error('❌ Error details:', error.response?.data || error.message)
+    console.error('❌ Error status:', error.response?.status)
     
     // Return empty array if API fails
     console.log('🔄 API failed, returning empty results')
