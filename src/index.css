@@ -317,6 +317,170 @@ body {
   border: none;
 }
 
+/* Duration Information Styles */
+.duration-info {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.duration-info h4 {
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+  color: #fbbf24;
+}
+
+.duration-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.duration-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.duration-item.highlight {
+  background: rgba(251, 191, 36, 0.2);
+  border: 2px solid #fbbf24;
+  transform: scale(1.05);
+}
+
+.duration-label {
+  font-weight: 600;
+  color: #fbbf24;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.duration-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+}
+
+.duration-explanation {
+  text-align: center;
+  font-size: 0.95rem;
+  opacity: 0.8;
+  margin-top: 1rem;
+  font-style: italic;
+}
+
+/* Compatibility Details Styles */
+.compatibility-details {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-align: left;
+}
+
+.compatibility-details h4 {
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  color: white;
+}
+
+.compatibility-details p {
+  margin-bottom: 0.5rem;
+  color: white;
+}
+
+.recommendations {
+  margin-top: 1rem;
+}
+
+.recommendations h5 {
+  margin-bottom: 0.5rem;
+  color: #fbbf24;
+  font-size: 1.1rem;
+}
+
+.recommendations ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.recommendations li {
+  padding: 0.25rem 0;
+  border-left: 3px solid #fbbf24;
+  padding-left: 1rem;
+  margin-bottom: 0.5rem;
+  color: white;
+}
+
+/* Progress Bar Styles */
+.progress-container {
+  flex: 1;
+  margin: 0 1rem;
+  cursor: pointer;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff6b6b, #ee5a24);
+  border-radius: 4px;
+  transition: width 0.1s ease;
+}
+
+.time-display {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  text-align: center;
+  color: white;
+}
+
+/* Waveform Styles */
+.waveform-toggle {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: all 0.2s ease;
+}
+
+.waveform-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.waveform-container {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 1rem;
