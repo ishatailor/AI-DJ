@@ -5,9 +5,13 @@ const SearchSection = ({ selectedSongs, onSongSelect }) => {
   const [searchQueries, setSearchQueries] = useState(['', ''])
   const [searchResults, setSearchResults] = useState([[], []])
   const [isSearching, setIsSearching] = useState([false, false])
+  const [timeouts, setTimeouts] = useState([null, null])
 
   const handleSearch = async (query, index) => {
+    console.log(`Searching for: "${query}" in index ${index}`)
+    
     if (!query.trim()) {
+      console.log('Empty query, clearing results')
       setSearchResults(prev => {
         const newResults = [...prev]
         newResults[index] = []
@@ -23,10 +27,13 @@ const SearchSection = ({ selectedSongs, onSongSelect }) => {
     })
 
     try {
+      console.log('Calling searchSpotifyTracks...')
       const results = await searchSpotifyTracks(query)
+      console.log('Search results:', results)
+      
       setSearchResults(prev => {
         const newResults = [...prev]
-        newResults[index] = results
+        newResults[index] = results || []
         return newResults
       })
     } catch (error) {
@@ -46,21 +53,33 @@ const SearchSection = ({ selectedSongs, onSongSelect }) => {
   }
 
   const handleInputChange = (value, index) => {
-    const newQueries = [...searchQueries]
-    newQueries[index] = value
-    setSearchQueries(newQueries)
+    console.log(`Input changed: "${value}" in index ${index}`)
+    
+    setSearchQueries(prev => {
+      const newQueries = [...prev]
+      newQueries[index] = value
+      return newQueries
+    })
 
-    // Debounce search
-    clearTimeout(searchQueries[index].timeoutId)
+    // Clear previous timeout
+    if (timeouts[index]) {
+      clearTimeout(timeouts[index])
+    }
+
+    // Set new timeout for debounced search
     const timeoutId = setTimeout(() => {
       handleSearch(value, index)
     }, 500)
 
-    newQueries[index].timeoutId = timeoutId
-    setSearchQueries(newQueries)
+    setTimeouts(prev => {
+      const newTimeouts = [...prev]
+      newTimeouts[index] = timeoutId
+      return newTimeouts
+    })
   }
 
   const handleSongSelect = (song, index) => {
+    console.log(`Song selected:`, song, `for index ${index}`)
     onSongSelect(index, song)
     setSearchQueries(prev => {
       const newQueries = [...prev]
@@ -89,6 +108,15 @@ const SearchSection = ({ selectedSongs, onSongSelect }) => {
     )
   }
 
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      timeouts.forEach(timeout => {
+        if (timeout) clearTimeout(timeout)
+      })
+    }
+  }, [])
+
   return (
     <div className="search-section">
       <div className="search-grid">
@@ -115,8 +143,11 @@ const SearchSection = ({ selectedSongs, onSongSelect }) => {
               </div>
             )}
 
-            {searchResults[index].length > 0 && !selectedSongs[index] && (
+            {searchResults[index] && searchResults[index].length > 0 && !selectedSongs[index] && (
               <div className="search-results">
+                <p style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: '0.5rem' }}>
+                  Found {searchResults[index].length} results
+                </p>
                 {searchResults[index].map((track) => (
                   <div
                     key={track.id}
@@ -130,6 +161,12 @@ const SearchSection = ({ selectedSongs, onSongSelect }) => {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {searchResults[index] && searchResults[index].length === 0 && searchQueries[index].length > 0 && !isSearching[index] && (
+              <div style={{ textAlign: 'center', marginTop: '1rem', opacity: 0.7 }}>
+                No results found
               </div>
             )}
           </div>

@@ -3,6 +3,7 @@ import SearchSection from './components/SearchSection'
 import LoadingSection from './components/LoadingSection'
 import MixPlayer from './components/MixPlayer'
 import { generateMix } from './services/mixService'
+import { searchSpotifyTracks } from './services/spotifyService'
 
 function App() {
   const [selectedSongs, setSelectedSongs] = useState([null, null])
@@ -10,6 +11,7 @@ function App() {
   const [generationProgress, setGenerationProgress] = useState(0)
   const [generatedMix, setGeneratedMix] = useState(null)
   const [error, setError] = useState(null)
+  const [testResults, setTestResults] = useState(null)
 
   const handleSongSelect = (songIndex, song) => {
     const newSelectedSongs = [...selectedSongs]
@@ -55,6 +57,18 @@ function App() {
     }
   }
 
+  const testSearch = async () => {
+    try {
+      console.log('🧪 Testing search functionality...')
+      const results = await searchSpotifyTracks('bohemian')
+      console.log('🧪 Test search results:', results)
+      setTestResults(results)
+    } catch (error) {
+      console.error('🧪 Test search failed:', error)
+      setTestResults({ error: error.message })
+    }
+  }
+
   const canGenerate = selectedSongs[0] && selectedSongs[1] && !isGenerating
 
   return (
@@ -62,6 +76,45 @@ function App() {
       <div className="header">
         <h1>AI DJ Mixer</h1>
         <p>Create amazing mixes from your favorite Spotify tracks</p>
+      </div>
+
+      {/* Test Section */}
+      <div style={{ 
+        background: 'rgba(255, 255, 255, 0.1)', 
+        padding: '1rem', 
+        borderRadius: '12px', 
+        marginBottom: '1rem',
+        textAlign: 'center'
+      }}>
+        <button 
+          onClick={testSearch}
+          style={{
+            background: 'rgba(255, 255, 255, 0.2)',
+            border: 'none',
+            color: 'white',
+            padding: '0.5rem 1rem',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            marginBottom: '1rem'
+          }}
+        >
+          🧪 Test Search API
+        </button>
+        
+        {testResults && (
+          <div style={{ textAlign: 'left' }}>
+            <h4>Test Results:</h4>
+            <pre style={{ 
+              background: 'rgba(0, 0, 0, 0.3)', 
+              padding: '1rem', 
+              borderRadius: '8px',
+              overflow: 'auto',
+              fontSize: '0.9rem'
+            }}>
+              {JSON.stringify(testResults, null, 2)}
+            </pre>
+          </div>
+        )}
       </div>
 
       <SearchSection 

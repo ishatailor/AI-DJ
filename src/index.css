@@ -124,6 +124,35 @@ body {
   opacity: 0.8;
 }
 
+.selected-song {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.selected-song img {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.selected-song h4 {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  color: #fff;
+}
+
+.selected-song p {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
 .generate-btn {
   background: linear-gradient(45deg, #ff6b6b, #ee5a24);
   color: white;
