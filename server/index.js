@@ -100,7 +100,7 @@ app.get('/api/search', async (req, res) => {
       return res.status(400).json({ error: 'Query parameter required' })
     }
 
-    // Mock search results
+    // Expanded mock search results with more songs
     const mockResults = [
       {
         id: '1',
@@ -131,6 +131,126 @@ app.get('/api/search', async (req, res) => {
         duration: 482,
         uri: 'spotify:track:3',
         previewUrl: null
+      },
+      {
+        id: '4',
+        name: 'Imagine',
+        artist: 'John Lennon',
+        album: 'Imagine',
+        albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=John+Lennon',
+        duration: 183,
+        uri: 'spotify:track:4',
+        previewUrl: null
+      },
+      {
+        id: '5',
+        name: 'Hey Jude',
+        artist: 'The Beatles',
+        album: 'The Beatles 1967-1970',
+        albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=The+Beatles',
+        duration: 431,
+        uri: 'spotify:track:5',
+        previewUrl: null
+      },
+      {
+        id: '6',
+        name: 'Smells Like Teen Spirit',
+        artist: 'Nirvana',
+        album: 'Nevermind',
+        albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Nirvana',
+        duration: 301,
+        uri: 'spotify:track:6',
+        previewUrl: null
+      },
+      {
+        id: '7',
+        name: 'Like a Rolling Stone',
+        artist: 'Bob Dylan',
+        album: 'Highway 61 Revisited',
+        albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Bob+Dylan',
+        duration: 371,
+        uri: 'spotify:track:7',
+        previewUrl: null
+      },
+      {
+        id: '8',
+        name: 'I Can\'t Get No Satisfaction',
+        artist: 'The Rolling Stones',
+        album: 'Out of Our Heads',
+        albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Rolling+Stones',
+        duration: 224,
+        uri: 'spotify:track:8',
+        previewUrl: null
+      },
+      {
+        id: '9',
+        name: 'Yesterday',
+        artist: 'The Beatles',
+        album: 'Help!',
+        albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=The+Beatles',
+        duration: 125,
+        uri: 'spotify:track:9',
+        previewUrl: null
+      },
+      {
+        id: '10',
+        name: 'Good Vibrations',
+        artist: 'The Beach Boys',
+        album: 'Smiley Smile',
+        albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Beach+Boys',
+        duration: 216,
+        uri: 'spotify:track:10',
+        previewUrl: null
+      },
+      {
+        id: '11',
+        name: 'Johnny B. Goode',
+        artist: 'Chuck Berry',
+        album: 'Chuck Berry Is on Top',
+        albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Chuck+Berry',
+        duration: 163,
+        uri: 'spotify:track:11',
+        previewUrl: null
+      },
+      {
+        id: '12',
+        name: 'What\'s Going On',
+        artist: 'Marvin Gaye',
+        album: 'What\'s Going On',
+        albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Marvin+Gaye',
+        duration: 234,
+        uri: 'spotify:track:12',
+        previewUrl: null
+      },
+      {
+        id: '13',
+        name: 'My Generation',
+        artist: 'The Who',
+        album: 'My Generation',
+        albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=The+Who',
+        duration: 224,
+        uri: 'spotify:track:13',
+        previewUrl: null
+      },
+      {
+        id: '14',
+        name: 'A Change Is Gonna Come',
+        artist: 'Sam Cooke',
+        album: 'Ain\'t That Good News',
+        albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Sam+Cooke',
+        duration: 193,
+        uri: 'spotify:track:14',
+        previewUrl: null
+      },
+      {
+        id: '15',
+        name: 'Respect',
+        artist: 'Aretha Franklin',
+        album: 'I Never Loved a Man the Way I Love You',
+        albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Aretha+Franklin',
+        duration: 147,
+        uri: 'spotify:track:15',
+        previewUrl: null
       }
     ].filter(track => 
       track.name.toLowerCase().includes(q.toLowerCase()) ||
@@ -138,7 +258,10 @@ app.get('/api/search', async (req, res) => {
       track.album.toLowerCase().includes(q.toLowerCase())
     )
 
-    res.json(mockResults)
+    // Limit results to 20 for performance
+    const limitedResults = mockResults.slice(0, 20)
+
+    res.json(limitedResults)
 
   } catch (error) {
     console.error('Search error:', error)

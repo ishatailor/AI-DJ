@@ -102,9 +102,33 @@ const MixPlayer = ({ mix }) => {
         
         <div className="stat-item">
           <div className="stat-value">{formatTime(mix.structure.totalDuration)}</div>
-          <div className="stat-label">Total Duration</div>
+          <div className="stat-label">Mix Duration</div>
         </div>
       </div>
+
+      {/* Duration Information */}
+      {mix.originalDurations && (
+        <div className="duration-info">
+          <h4>Duration Analysis</h4>
+          <div className="duration-grid">
+            <div className="duration-item">
+              <span className="duration-label">Song 1</span>
+              <span className="duration-value">{formatTime(mix.originalDurations.song1)}</span>
+            </div>
+            <div className="duration-item">
+              <span className="duration-label">Song 2</span>
+              <span className="duration-value">{formatTime(mix.originalDurations.song2)}</span>
+            </div>
+            <div className="duration-item highlight">
+              <span className="duration-label">Mix Length</span>
+              <span className="duration-value">{formatTime(mix.originalDurations.average)}</span>
+            </div>
+          </div>
+          <p className="duration-explanation">
+            The mix duration is calculated as the average of both songs' lengths for optimal flow.
+          </p>
+        </div>
+      )}
 
       <div className="compatibility-details">
         <h4>Mix Analysis</h4>
@@ -174,21 +198,12 @@ const MixPlayer = ({ mix }) => {
       <button 
         className="waveform-toggle"
         onClick={() => setShowWaveform(!showWaveform)}
-        style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          border: 'none',
-          color: 'white',
-          padding: '0.5rem 1rem',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          marginTop: '1rem'
-        }}
       >
         {showWaveform ? 'Hide' : 'Show'} Waveform
       </button>
 
       {showWaveform && (
-        <div className="waveform-container" style={{ marginTop: '1rem' }}>
+        <div className="waveform-container">
           <svg width="100%" height="100" viewBox={`0 0 ${mix.waveform.length * 2} 100`}>
             {mix.waveform.map((point, index) => (
               <rect
@@ -219,81 +234,6 @@ const MixPlayer = ({ mix }) => {
           console.log('Audio preview not available - this is expected in demo mode')
         }}
       />
-
-      <style jsx>{`
-        .compatibility-details {
-          background: rgba(255, 255, 255, 0.1);
-          padding: 1.5rem;
-          border-radius: 12px;
-          margin-bottom: 2rem;
-          text-align: left;
-        }
-        
-        .compatibility-details h4 {
-          margin-bottom: 1rem;
-          font-size: 1.3rem;
-        }
-        
-        .compatibility-details p {
-          margin-bottom: 0.5rem;
-        }
-        
-        .recommendations {
-          margin-top: 1rem;
-        }
-        
-        .recommendations h5 {
-          margin-bottom: 0.5rem;
-          color: #fbbf24;
-        }
-        
-        .recommendations ul {
-          list-style: none;
-          padding-left: 0;
-        }
-        
-        .recommendations li {
-          padding: 0.25rem 0;
-          border-left: 3px solid #fbbf24;
-          padding-left: 1rem;
-          margin-bottom: 0.5rem;
-        }
-        
-        .progress-container {
-          flex: 1;
-          margin: 0 1rem;
-          cursor: pointer;
-        }
-        
-        .progress-bar {
-          width: 100%;
-          height: 8px;
-          background: rgba(255, 255, 255, 0.2);
-          border-radius: 4px;
-          overflow: hidden;
-          margin-bottom: 0.5rem;
-        }
-        
-        .progress-fill {
-          height: 100%;
-          background: linear-gradient(90deg, #ff6b6b, #ee5a24);
-          border-radius: 4px;
-          transition: width 0.1s ease;
-        }
-        
-        .time-display {
-          font-size: 0.9rem;
-          opacity: 0.8;
-          text-align: center;
-        }
-        
-        .waveform-container {
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 12px;
-          padding: 1rem;
-          overflow-x: auto;
-        }
-      `}</style>
     </div>
   )
 }

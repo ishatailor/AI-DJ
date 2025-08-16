@@ -63,8 +63,15 @@ const generateRecommendations = (bpmDiff, keyCompatibility, energyDiff, danceabi
 }
 
 const generateMixStructure = (track1, track2, compatibility) => {
-  const totalDuration = track1.duration + track2.duration
-  const transitionPoint = Math.min(track1.duration * 0.7, track2.duration * 0.3)
+  // Calculate the average duration of the two songs
+  const averageDuration = Math.round((track1.duration + track2.duration) / 2)
+  
+  // Create a mix that's approximately the average length
+  // First song plays for about 60% of the mix, second song for 40%
+  const firstSongDuration = Math.round(averageDuration * 0.6)
+  const secondSongDuration = Math.round(averageDuration * 0.4)
+  
+  const transitionPoint = Math.min(firstSongDuration, track1.duration * 0.8)
   
   return {
     intro: {
@@ -82,39 +89,67 @@ const generateMixStructure = (track1, track2, compatibility) => {
     outro: {
       track: track2,
       start: transitionPoint,
-      end: totalDuration,
+      end: averageDuration,
       fadeIn: 2000,
       fadeOut: 0
     },
-    totalDuration: totalDuration
+    totalDuration: averageDuration
   }
 }
 
 export const generateMix = async (song1, song2) => {
   try {
-    // Get detailed track features from backend API
-    const [features1, features2] = await Promise.all([
-      fetch(`/api/tracks/${song1.id}/features`).then(res => res.json()),
-      fetch(`/api/tracks/${song2.id}/features`).then(res => res.json())
-    ])
+    // Create enhanced track objects with mock features since we don't have real API
+    const mockFeatures1 = {
+      danceability: 0.7 + Math.random() * 0.3,
+      energy: 0.6 + Math.random() * 0.4,
+      key: Math.floor(Math.random() * 12),
+      loudness: -20 + Math.random() * 20,
+      mode: Math.random() > 0.5 ? 1 : 0,
+      speechiness: Math.random() * 0.1,
+      acousticness: Math.random() * 0.3,
+      instrumentalness: Math.random() * 0.5,
+      liveness: Math.random() * 0.2,
+      valence: Math.random(),
+      tempo: 80 + Math.random() * 100, // BPM between 80-180
+      duration_ms: song1.duration * 1000, // Convert seconds to milliseconds
+      time_signature: 4
+    }
     
-    // Create enhanced track objects with features
+    const mockFeatures2 = {
+      danceability: 0.7 + Math.random() * 0.3,
+      energy: 0.6 + Math.random() * 0.4,
+      key: Math.floor(Math.random() * 12),
+      loudness: -20 + Math.random() * 20,
+      mode: Math.random() > 0.5 ? 1 : 0,
+      speechiness: Math.random() * 0.1,
+      acousticness: Math.random() * 0.3,
+      instrumentalness: Math.random() * 0.5,
+      liveness: Math.random() * 0.2,
+      valence: Math.random(),
+      tempo: 80 + Math.random() * 100, // BPM between 80-180
+      duration_ms: song2.duration * 1000, // Convert seconds to milliseconds
+      time_signature: 4
+    }
+    
     const track1 = {
       ...song1,
-      ...features1,
-      duration: song1.duration
+      ...mockFeatures1,
+      duration: song1.duration,
+      bpm: mockFeatures1.tempo
     }
     
     const track2 = {
       ...song2,
-      ...features2,
-      duration: song2.duration
+      ...mockFeatures2,
+      duration: song2.duration,
+      bpm: mockFeatures2.tempo
     }
     
     // Analyze compatibility
     const compatibility = analyzeCompatibility(track1, track2)
     
-    // Generate mix structure
+    // Generate mix structure with average duration
     const mixStructure = generateMixStructure(track1, track2, compatibility)
     
     // Create the final mix object
@@ -127,14 +162,20 @@ export const generateMix = async (song1, song2) => {
       generatedAt: new Date().toISOString(),
       // In a real application, this would be the actual mixed audio file
       audioUrl: `/api/mixes/${Date.now()}/audio`,
-      waveform: generateWaveform(mixStructure.totalDuration)
+      waveform: generateWaveform(mixStructure.totalDuration),
+      // Add duration information
+      originalDurations: {
+        song1: song1.duration,
+        song2: song2.duration,
+        average: mixStructure.totalDuration
+      }
     }
     
     return mix
     
   } catch (error) {
     console.error('Error generating mix:', error)
-    // Fallback to mock data if API fails
+    // Fallback to mock data if anything fails
     const mockFeatures = {
       danceability: 0.7 + Math.random() * 0.3,
       energy: 0.6 + Math.random() * 0.4,
@@ -154,13 +195,15 @@ export const generateMix = async (song1, song2) => {
     const track1 = {
       ...song1,
       ...mockFeatures,
-      duration: song1.duration
+      duration: song1.duration,
+      bpm: mockFeatures.tempo
     }
     
     const track2 = {
       ...song2,
       ...mockFeatures,
-      duration: song2.duration
+      duration: song2.duration,
+      bpm: mockFeatures.tempo
     }
     
     const compatibility = analyzeCompatibility(track1, track2)
@@ -174,7 +217,13 @@ export const generateMix = async (song1, song2) => {
       structure: mixStructure,
       generatedAt: new Date().toISOString(),
       audioUrl: `/api/mixes/${Date.now()}/audio`,
-      waveform: generateWaveform(mixStructure.totalDuration)
+      waveform: generateWaveform(mixStructure.totalDuration),
+      // Add duration information
+      originalDurations: {
+        song1: song1.duration,
+        song2: song2.duration,
+        average: mixStructure.totalDuration
+      }
     }
   }
 }
