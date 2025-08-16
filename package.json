@@ -1,0 +1,33 @@
+{
+  "name": "ai-dj-mixer",
+  "version": "1.0.0",
+  "description": "AI-powered DJ application that generates mixes from Spotify songs",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "axios": "^1.6.0",
+    "spotify-web-api-node": "^5.0.2",
+    "tone": "^14.7.77",
+    "web-audio-api": "^0.2.2",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@vitejs/plugin-react": "^4.1.1",
+    "vite": "^4.5.0"
+  },
+  "keywords": ["ai", "dj", "spotify", "music", "mixing"],
+  "author": "Your Name",
+  "license": "MIT"
+}
