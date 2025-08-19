@@ -388,48 +388,29 @@ app.get('/api/library', async (req, res) => {
   try {
     const totalLimit = Math.min(parseInt(req.query.limit || '120', 10), 200)
     const token = await getSpotifyToken()
-    const markets = ['US','GB','DE']
-    // Known popular artist IDs to seed recs (Queen, Calvin Harris, Dua Lipa, The Weeknd, David Guetta)
-    const artistSeedBatches = [
-      ['1dfeR4HaWDbWqFHLkxsg1d','7CajN1mjk4x88C7wXbo7Sd','6M2wZ9GZgrQXHCFfjv46we'],
-      ['1Xyo4u8uXC1ZmMpatF05PJ','1Cs0zKBU1kc0i8ypK3B9ai'],
-      ['3TVXtAsR1Inumwj472S9r4','53XhwfbYqKCa1cC15pYq2q']
-    ]
+    const markets = ['US','GB','DE','SE','AU']
     const seen = new Set()
     const library = []
+    const queries = ['love','time','night','dance','remix','feat','live','the','you','me','sun','moon','heart','beat','club']
+    const offsets = [0, 50, 100]
     for (const market of markets) {
-      // Try recommendations first; if they fail, use search-based fallback
-      let recOk = false
-      try {
-        for (const seeds of artistSeedBatches) {
-          const recs = await fetchRecommendations(token, { limit: 50, market, seedArtists: seeds })
-          for (const t of recs) {
-            if (seen.has(t.id)) continue
-            seen.add(t.id)
-            library.push(t)
-            if (library.length >= totalLimit) break
+      for (const q of queries) {
+        for (const offset of offsets) {
+          try {
+            const results = await fetchSearchPreviewables(token, { q, limit: 50, market, offset })
+            for (const t of results) {
+              if (seen.has(t.id)) continue
+              seen.add(t.id)
+              library.push(t)
+              if (library.length >= totalLimit) break
+            }
+          } catch (e) {
+            console.warn('Search fallback failed:', e.message)
           }
           if (library.length >= totalLimit) break
         }
-        recOk = true
-      } catch (e) {
-        console.warn('Recommendations failed, falling back to search:', e.message)
+        if (library.length >= totalLimit) break
       }
-
-      if (!recOk || library.length < totalLimit) {
-        const queries = ['love','live','mix','the','you','dance','remix']
-        for (const q of queries) {
-          const results = await fetchSearchPreviewables(token, { q, limit: 50, market, offset: 0 })
-          for (const t of results) {
-            if (seen.has(t.id)) continue
-            seen.add(t.id)
-            library.push(t)
-            if (library.length >= totalLimit) break
-          }
-          if (library.length >= totalLimit) break
-        }
-      }
-
       if (library.length >= totalLimit) break
     }
     res.json(library)

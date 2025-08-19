@@ -226,56 +226,7 @@ const getPreviewableRecommendations = async (limit = 30, market = 'US', seedGenr
 
 export const fetchPreviewLibrary = async (totalLimit = 120) => {
   // Prefer server-side library to avoid client-side rate limits and CORS
-  try {
-    const resp = await axios.get('/api/library', { params: { limit: totalLimit } })
-    const items = Array.isArray(resp.data) ? resp.data : []
-    if (items.length > 0) return items
-    // If server returned an empty list, try client-side recommendations to populate UI
-    try {
-      const markets = ['US','GB','DE']
-      const seedsList = [
-        ['pop','dance','edm','rock'],
-        ['house','electronic','hip-hop','indie']
-      ]
-      const seen = new Set()
-      const library = []
-      for (const market of markets) {
-        for (const seeds of seedsList) {
-          const batch = await getPreviewableRecommendations(50, market, seeds)
-          for (const t of batch) {
-            if (seen.has(t.id)) continue
-            seen.add(t.id)
-            library.push(t)
-            if (library.length >= totalLimit) return library
-          }
-        }
-      }
-      return library
-    } catch {
-      return []
-    }
-  } catch (e) {
-    // Fallback to client-side recommendations if server route unavailable
-    const markets = ['US','GB','DE','SE','AU']
-    const genreBatches = [
-      ['pop','dance','edm','rock'],
-      ['house','electronic','hip-hop','indie'],
-      ['latin','k-pop','r-n-b','alternative']
-    ]
-    const seen = new Set()
-    const library = []
-    for (const market of markets) {
-      for (const seeds of genreBatches) {
-        const batch = await getPreviewableRecommendations(50, market, seeds)
-        for (const t of batch) {
-          if (seen.has(t.id)) continue
-          seen.add(t.id)
-          library.push(t)
-          if (library.length >= totalLimit) return library
-        }
-      }
-      if (library.length >= totalLimit) break
-    }
-    return library
-  }
+  const resp = await axios.get('/api/library', { params: { limit: totalLimit } })
+  const items = Array.isArray(resp.data) ? resp.data : []
+  return items
 }
