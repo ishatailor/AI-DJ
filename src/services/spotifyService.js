@@ -60,36 +60,58 @@ export const searchSpotifyTracks = async (query) => {
     }
 
     const desiredCount = 20
-    const offsets = [0, 50, 100, 150]
-    const marketsToTry = ['US', 'GB', 'DE', 'CA', 'BR']
+    const offsets = [0, 50, 100]
+    const marketsToTry = [
+      'US','GB','DE','CA','BR','SE','NO','FI','DK','FR','NL','IE','ES','PT','IT','PL','AU','NZ','JP','MX','AR','CL','IN','ID','PH','SG','MY','TH','TR','AE'
+    ]
+    const baseQuery = query.trim()
+    const queryVariations = new Set()
+    queryVariations.add(baseQuery)
+    queryVariations.add(`track:${baseQuery}`)
+    queryVariations.add(`artist:${baseQuery}`)
+    if (baseQuery.includes(' ')) {
+      const parts = baseQuery.split(/\s+/)
+      if (parts.length >= 2) {
+        const first = parts[0]
+        const rest = parts.slice(1).join(' ')
+        queryVariations.add(`artist:${first} track:${rest}`)
+        queryVariations.add(`track:${first} artist:${rest}`)
+      }
+    }
     const previewable = []
     const seen = new Set()
 
-    for (const market of marketsToTry) {
-      for (const offset of offsets) {
-        const response = await fetchPage(offset, market)
-        console.log('✅ Spotify API response received:', response)
-        const items = response?.data?.tracks?.items || []
-        for (const track of items) {
-          if (!track?.preview_url) continue
-          if (seen.has(track.id)) continue
-          seen.add(track.id)
-          previewable.push({
-            id: track.id,
-            name: track.name,
-            artist: track.artists.map(a => a.name).join(', '),
-            album: track.album.name,
-            albumArt: track.album.images[0]?.url || 'https://via.placeholder.com/300x300/1db954/ffffff?text=No+Image',
-            duration: Math.round(track.duration_ms / 1000),
-            uri: track.uri,
-            previewUrl: track.preview_url,
-            externalUrl: track.external_urls.spotify
+    for (const q of queryVariations) {
+      for (const market of marketsToTry) {
+        for (const offset of offsets) {
+          const resp = await axios.get(`https://api.spotify.com/v1/search`, {
+            params: { q, type: 'track', limit: 50, offset, market },
+            headers: { 'Authorization': `Bearer ${token}` }
           })
+          console.log('✅ Spotify API response received:', resp)
+          const items = resp?.data?.tracks?.items || []
+          for (const track of items) {
+            if (!track?.preview_url) continue
+            if (seen.has(track.id)) continue
+            seen.add(track.id)
+            previewable.push({
+              id: track.id,
+              name: track.name,
+              artist: track.artists.map(a => a.name).join(', '),
+              album: track.album.name,
+              albumArt: track.album.images[0]?.url || 'https://via.placeholder.com/300x300/1db954/ffffff?text=No+Image',
+              duration: Math.round(track.duration_ms / 1000),
+              uri: track.uri,
+              previewUrl: track.preview_url,
+              externalUrl: track.external_urls.spotify
+            })
+            if (previewable.length >= desiredCount) break
+          }
           if (previewable.length >= desiredCount) break
+          const total = resp?.data?.tracks?.total ?? 0
+          if (offset + 50 >= total) break
         }
         if (previewable.length >= desiredCount) break
-        const total = response?.data?.tracks?.total ?? 0
-        if (offset + 50 >= total) break
       }
       if (previewable.length >= desiredCount) break
     }
