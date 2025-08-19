@@ -67,8 +67,11 @@ export const searchSpotifyTracks = async (query) => {
         externalUrl: track.external_urls.spotify
       }))
 
-      console.log('📊 Real Spotify tracks:', tracks)
-      return tracks
+      // Only return tracks that have a preview available
+      const previewableTracks = tracks.filter(t => Boolean(t.previewUrl))
+
+      console.log('📊 Real Spotify tracks (previewable only):', previewableTracks)
+      return previewableTracks
     } else {
       console.error('❌ Unexpected Spotify response format:', response.data)
       return []

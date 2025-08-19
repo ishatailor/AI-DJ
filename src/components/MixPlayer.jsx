@@ -41,7 +41,15 @@ const MixPlayer = ({ mix }) => {
 
   const handleTimeUpdate = (e) => {
     const time = e.target.currentTime
-    setCurrentTime(time)
+    // Clamp to 30s preview
+    const clamped = Math.min(time, 30)
+    setCurrentTime(clamped)
+    if (time >= 30 && audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+      setIsPlaying(false)
+      if (progressInterval.current) clearInterval(progressInterval.current)
+    }
   }
 
   const handleSeek = (e) => {
@@ -170,7 +178,7 @@ const MixPlayer = ({ mix }) => {
             ></div>
           </div>
           <div className="time-display">
-            {formatTime(currentTime)} / {formatTime(mix.structure.totalDuration)}
+            {formatTime(currentTime)} / {formatTime(30)}
           </div>
         </div>
       </div>

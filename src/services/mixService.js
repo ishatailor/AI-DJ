@@ -32,6 +32,11 @@ class AudioMixer {
       // Initialize audio context
       await this.initialize()
 
+      // Enforce: only generate a mix if BOTH songs have a preview available
+      if (!song1?.previewUrl || !song2?.previewUrl) {
+        throw new Error('Both selected songs must have a Spotify preview available to generate a mix')
+      }
+
       // Create enhanced track objects with mock features
       const mockFeatures1 = {
         danceability: 0.7 + Math.random() * 0.3,
@@ -83,20 +88,14 @@ class AudioMixer {
       const compatibility = analyzeCompatibility(track1, track2)
       console.log('🔍 Compatibility analyzed:', compatibility)
 
-      // Generate mix structure
+      // Generate mix structure then clamp to 30s preview
       const mixStructure = generateMixStructure(track1, track2, compatibility)
+      const PREVIEW_DURATION = 30
+      mixStructure.totalDuration = PREVIEW_DURATION
       console.log('🏗️ Mix structure generated:', mixStructure)
 
-      // pick a usable audio URL (Spotify preview) if available, else synthesize locally
-      let audioUrl = song1.previewUrl || song2.previewUrl || null
-      if (!audioUrl) {
-        try {
-          audioUrl = await this.generateSyntheticMix(track1, track2, mixStructure)
-        } catch (e) {
-          console.log('⚠️ Synthetic mix generation failed:', e?.message || e)
-          audioUrl = null
-        }
-      }
+      // Use a Spotify preview URL (30s) as the audio source
+      const audioUrl = song1.previewUrl || song2.previewUrl
 
       // Create the complete mix object with ALL required properties
       const mix = {
@@ -107,7 +106,7 @@ class AudioMixer {
         structure: mixStructure,
         generatedAt: new Date().toISOString(),
         audioUrl: audioUrl,
-        waveform: generateWaveform(mixStructure.totalDuration),
+        waveform: generateWaveform(30),
         originalDurations: {
           song1: song1.duration || 180,
           song2: song2.duration || 180,
@@ -115,7 +114,7 @@ class AudioMixer {
         },
         song1: song1,
         song2: song2,
-        duration: mixStructure.totalDuration,
+        duration: 30,
         status: 'ready',
         hasAudio: Boolean(audioUrl)
       }
@@ -439,161 +438,18 @@ export const generateMix = async (song1, song2) => {
       console.error('❌ Invalid songs provided:', { song1, song2 })
       throw new Error('Invalid songs provided')
     }
-
-    // Try to create a real audio mix first
-    try {
-      const realMix = await audioMixer.createMix(song1, song2)
-      console.log('✅ Real audio mix created successfully')
-      return realMix
-    } catch (audioError) {
-      console.log('⚠️ Real audio mix failed, falling back to mock:', audioError.message)
+    // Enforce preview availability for both songs
+    if (!song1?.previewUrl || !song2?.previewUrl) {
+      throw new Error('Both selected songs must have a Spotify preview available to generate a mix')
     }
 
-    // Fallback to your existing mock implementation
-    const mockFeatures1 = {
-      danceability: 0.7 + Math.random() * 0.3,
-      energy: 0.6 + Math.random() * 0.4,
-      key: Math.floor(Math.random() * 12),
-      loudness: -20 + Math.random() * 20,
-      mode: Math.random() > 0.5 ? 1 : 0,
-      speechiness: Math.random() * 0.1,
-      acousticness: Math.random() * 0.3,
-      instrumentalness: Math.random() * 0.5,
-      liveness: Math.random() * 0.2,
-      valence: Math.random(),
-      tempo: 80 + Math.random() * 100,
-      duration_ms: (song1.duration || 180) * 1000,
-      time_signature: 4
-    }
-
-    const mockFeatures2 = {
-      danceability: 0.7 + Math.random() * 0.3,
-      energy: 0.6 + Math.random() * 0.4,
-      key: Math.floor(Math.random() * 12),
-      loudness: -20 + Math.random() * 20,
-      mode: Math.random() > 0.5 ? 1 : 0,
-      speechiness: Math.random() * 0.1,
-      acousticness: Math.random() * 0.3,
-      instrumentalness: Math.random() * 0.5,
-      liveness: Math.random() * 0.2,
-      valence: Math.random(),
-      tempo: 80 + Math.random() * 100,
-      duration_ms: (song2.duration || 180) * 1000,
-      time_signature: 4
-    }
-
-    const track1 = {
-      ...song1,
-      ...mockFeatures1,
-      duration: song1.duration || 180,
-      bpm: mockFeatures1.tempo
-    }
-
-    const track2 = {
-      ...song2,
-      ...mockFeatures2,
-      duration: song2.duration || 180,
-      bpm: mockFeatures2.tempo
-    }
-
-    console.log('📊 Tracks prepared:', { track1, track2 })
-
-    // Analyze compatibility
-    const compatibility = analyzeCompatibility(track1, track2)
-    console.log('🔍 Compatibility analyzed:', compatibility)
-
-    // Generate mix structure
-    const mixStructure = generateMixStructure(track1, track2, compatibility)
-    console.log('🏗️ Mix structure generated:', mixStructure)
-
-    let previewUrl = song1.previewUrl || song2.previewUrl || null
-    if (!previewUrl) {
-      try {
-        // Use the same synthetic generator via the class instance if needed
-        previewUrl = await audioMixer.generateSyntheticMix(track1, track2, mixStructure)
-      } catch (e) {
-        console.log('⚠️ Synthetic mix (mock path) failed:', e?.message || e)
-        previewUrl = null
-      }
-    }
-
-    // Create the final mix object
-    const mix = {
-      id: `mix_${Date.now()}`,
-      name: `${song1.name} + ${song2.name}`,
-      tracks: [track1, track2],
-      compatibility: compatibility,
-      structure: mixStructure,
-      generatedAt: new Date().toISOString(),
-      audioUrl: previewUrl,
-      waveform: generateWaveform(mixStructure.totalDuration),
-      originalDurations: {
-        song1: song1.duration || 180,
-        song2: song2.duration || 180,
-        average: mixStructure.totalDuration
-      },
-      status: 'ready',
-      hasAudio: Boolean(previewUrl)
-    }
-
-    console.log('✅ Mock mix generated successfully:', mix)
-    return mix
+    const realMix = await audioMixer.createMix(song1, song2)
+    console.log('✅ Mix created successfully with previews')
+    return realMix
 
   } catch (error) {
     console.error('❌ Error generating mix:', error)
-
-    let previewUrl = song1?.previewUrl || song2?.previewUrl || null
-    if (!previewUrl) {
-      try {
-        // Last resort: short silent clip to avoid crashes
-        previewUrl = await (async () => {
-          const sr = 44100
-          const dur = 2
-          const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, sr * dur, sr)
-          const silent = ctx.createBuffer(1, sr * dur, sr)
-          const src = ctx.createBufferSource()
-          src.buffer = silent
-          src.connect(ctx.destination)
-          src.start(0)
-          const rendered = await ctx.startRendering()
-          const view = audioMixer.audioBufferToWav(rendered)
-          return URL.createObjectURL(new Blob([view], { type: 'audio/wav' }))
-        })()
-      } catch (e) {
-        previewUrl = null
-      }
-    }
-
-    // Return a safe fallback mix object
-    const fallbackMix = {
-      id: `fallback_${Date.now()}`,
-      name: `${song1?.name || 'Unknown'} + ${song2?.name || 'Unknown'}`,
-      tracks: [song1, song2],
-      compatibility: {
-        score: 50,
-        bpmScore: 50,
-        keyScore: 50,
-        energyScore: 50,
-        danceabilityScore: 50,
-        recommendations: ['Fallback mix generated due to error']
-      },
-      structure: {
-        totalDuration: 180
-      },
-      generatedAt: new Date().toISOString(),
-      audioUrl: previewUrl,
-      waveform: generateWaveform(180),
-      originalDurations: {
-        song1: song1?.duration || 180,
-        song2: song2?.duration || 180,
-        average: 180
-      },
-      status: 'ready',
-      hasAudio: Boolean(previewUrl)
-    }
-
-    console.log('🔄 Returning fallback mix:', fallbackMix)
-    return fallbackMix
+    throw error
   }
 }
 

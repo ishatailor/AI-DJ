@@ -119,7 +119,7 @@ app.get('/api/search', async (req, res) => {
         albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Queen',
         duration: 355,
         uri: 'spotify:track:1',
-        previewUrl: null
+        previewUrl: 'https://p.scdn.co/mp3-preview/queen-1'
       },
       {
         id: '2',
@@ -129,7 +129,7 @@ app.get('/api/search', async (req, res) => {
         albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Eagles',
         duration: 391,
         uri: 'spotify:track:2',
-        previewUrl: null
+        previewUrl: 'https://p.scdn.co/mp3-preview/eagles-2'
       },
       {
         id: '3',
@@ -139,7 +139,7 @@ app.get('/api/search', async (req, res) => {
         albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Led+Zeppelin',
         duration: 482,
         uri: 'spotify:track:3',
-        previewUrl: null
+        previewUrl: 'https://p.scdn.co/mp3-preview/ledzep-3'
       },
       {
         id: '4',
@@ -149,7 +149,7 @@ app.get('/api/search', async (req, res) => {
         albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=John+Lennon',
         duration: 183,
         uri: 'spotify:track:4',
-        previewUrl: null
+        previewUrl: 'https://p.scdn.co/mp3-preview/lennon-4'
       },
       {
         id: '5',
@@ -159,7 +159,7 @@ app.get('/api/search', async (req, res) => {
         albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=The+Beatles',
         duration: 431,
         uri: 'spotify:track:5',
-        previewUrl: null
+        previewUrl: 'https://p.scdn.co/mp3-preview/beatles-5'
       },
       {
         id: '6',
@@ -169,7 +169,7 @@ app.get('/api/search', async (req, res) => {
         albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Nirvana',
         duration: 301,
         uri: 'spotify:track:6',
-        previewUrl: null
+        previewUrl: 'https://p.scdn.co/mp3-preview/nirvana-6'
       },
       {
         id: '7',
@@ -179,7 +179,7 @@ app.get('/api/search', async (req, res) => {
         albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Bob+Dylan',
         duration: 371,
         uri: 'spotify:track:7',
-        previewUrl: null
+        previewUrl: 'https://p.scdn.co/mp3-preview/dylan-7'
       },
       {
         id: '8',
@@ -189,7 +189,7 @@ app.get('/api/search', async (req, res) => {
         albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Rolling+Stones',
         duration: 224,
         uri: 'spotify:track:8',
-        previewUrl: null
+        previewUrl: 'https://p.scdn.co/mp3-preview/stones-8'
       },
       {
         id: '9',
@@ -199,7 +199,7 @@ app.get('/api/search', async (req, res) => {
         albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=The+Beatles',
         duration: 125,
         uri: 'spotify:track:9',
-        previewUrl: null
+        previewUrl: 'https://p.scdn.co/mp3-preview/beatles-9'
       },
       {
         id: '10',
@@ -209,7 +209,7 @@ app.get('/api/search', async (req, res) => {
         albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Beach+Boys',
         duration: 216,
         uri: 'spotify:track:10',
-        previewUrl: null
+        previewUrl: 'https://p.scdn.co/mp3-preview/beachboys-10'
       },
       {
         id: '11',
@@ -219,7 +219,7 @@ app.get('/api/search', async (req, res) => {
         albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Chuck+Berry',
         duration: 163,
         uri: 'spotify:track:11',
-        previewUrl: null
+        previewUrl: 'https://p.scdn.co/mp3-preview/berry-11'
       },
       {
         id: '12',
@@ -229,7 +229,7 @@ app.get('/api/search', async (req, res) => {
         albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Marvin+Gaye',
         duration: 234,
         uri: 'spotify:track:12',
-        previewUrl: null
+        previewUrl: 'https://p.scdn.co/mp3-preview/gaye-12'
       },
       {
         id: '13',
@@ -239,7 +239,7 @@ app.get('/api/search', async (req, res) => {
         albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=The+Who',
         duration: 224,
         uri: 'spotify:track:13',
-        previewUrl: null
+        previewUrl: 'https://p.scdn.co/mp3-preview/who-13'
       },
       {
         id: '14',
@@ -249,7 +249,7 @@ app.get('/api/search', async (req, res) => {
         albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Sam+Cooke',
         duration: 193,
         uri: 'spotify:track:14',
-        previewUrl: null
+        previewUrl: 'https://p.scdn.co/mp3-preview/cooke-14'
       },
       {
         id: '15',
@@ -259,12 +259,13 @@ app.get('/api/search', async (req, res) => {
         albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Aretha+Franklin',
         duration: 147,
         uri: 'spotify:track:15',
-        previewUrl: null
+        previewUrl: 'https://p.scdn.co/mp3-preview/aretha-15'
       }
     ].filter(track => 
-      track.name.toLowerCase().includes(q.toLowerCase()) ||
+      (track.name.toLowerCase().includes(q.toLowerCase()) ||
       track.artist.toLowerCase().includes(q.toLowerCase()) ||
-      track.album.toLowerCase().includes(q.toLowerCase())
+      track.album.toLowerCase().includes(q.toLowerCase())) &&
+      Boolean(track.previewUrl)
     )
 
     // Limit results to 20 for performance
