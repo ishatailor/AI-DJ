@@ -37,17 +37,9 @@ export const searchSpotifyTracks = async (query) => {
   console.log('🔍 searchSpotifyTracks called with query:', query)
 
   try {
-    // For very short queries, fall back to local mock to avoid Spotify 403/rate limits
+    // For very short queries, do nothing (avoid mock fallback)
     if (!query || query.trim().length < 2) {
-      try {
-        const fallback = await axios.get('/api/search', { params: { q: query } })
-        const items = Array.isArray(fallback.data) ? fallback.data : []
-        const filtered = items.filter(t => Boolean(t.previewUrl)).slice(0, 20)
-        console.log('📊 Fallback (short query) previewable tracks from local API:', filtered)
-        return filtered
-      } catch (e) {
-        console.log('⚠️ Local fallback (short query) search failed:', e?.message || e)
-      }
+      return []
     }
 
     const token = await getAccessToken()
@@ -103,15 +95,7 @@ export const searchSpotifyTracks = async (query) => {
     }
 
     if (previewable.length === 0) {
-      try {
-        const fallback = await axios.get('/api/search', { params: { q: query } })
-        const items = Array.isArray(fallback.data) ? fallback.data : []
-        const filtered = items.filter(t => Boolean(t.previewUrl)).slice(0, desiredCount)
-        console.log('📊 Fallback previewable tracks from local API:', filtered)
-        return filtered
-      } catch (e) {
-        console.log('⚠️ Local fallback search failed:', e?.message || e)
-      }
+      return []
     }
 
     console.log('📊 Real Spotify tracks (previewable only):', previewable)
@@ -126,17 +110,8 @@ export const searchSpotifyTracks = async (query) => {
       tokenExpiry = null
       console.log('🔄 Token expired, will refresh on next request')
     }
-    // Fallback on any error
-    try {
-      const fallback = await axios.get('/api/search', { params: { q: query } })
-      const items = Array.isArray(fallback.data) ? fallback.data : []
-      const filtered = items.filter(t => Boolean(t.previewUrl)).slice(0, 20)
-      console.log('📊 Fallback (error path) previewable tracks from local API:', filtered)
-      return filtered
-    } catch (e) {
-      console.log('⚠️ Local fallback (error path) search failed:', e?.message || e)
-      return []
-    }
+    // On error, return empty results (no mock fallback)
+    return []
   }
 }
 

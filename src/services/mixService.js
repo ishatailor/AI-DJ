@@ -1,5 +1,4 @@
-// Remove the import that might be causing issues
-// import { getTrackFeatures, getTrackAnalysis } from './spotifyService'
+import { getTrackFeatures } from './spotifyService'
 
 // Simplified Web Audio API Integration
 class AudioMixer {
@@ -37,19 +36,31 @@ class AudioMixer {
         throw new Error('Both selected songs must have a Spotify preview available to generate a mix')
       }
 
-      // Create enhanced track objects with mock features
+      // Try to fetch real Spotify audio features (tempo/key). Fallback to mock if unavailable.
+      const isSpotifyId = (id) => typeof id === 'string' && /^[A-Za-z0-9]{10,}$/.test(id)
+      const keyIndexToName = (idx) => ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][Math.max(0, Math.min(11, Number(idx) || 0))]
+
+      let real1 = null
+      let real2 = null
+      try {
+        if (isSpotifyId(song1.id)) real1 = await getTrackFeatures(song1.id)
+      } catch {}
+      try {
+        if (isSpotifyId(song2.id)) real2 = await getTrackFeatures(song2.id)
+      } catch {}
+
       const mockFeatures1 = {
         danceability: 0.7 + Math.random() * 0.3,
         energy: 0.6 + Math.random() * 0.4,
-        key: Math.floor(Math.random() * 12),
+        key: keyIndexToName(real1?.key ?? Math.floor(Math.random() * 12)),
         loudness: -20 + Math.random() * 20,
-        mode: Math.random() > 0.5 ? 1 : 0,
+        mode: real1?.mode ?? (Math.random() > 0.5 ? 1 : 0),
         speechiness: Math.random() * 0.1,
         acousticness: Math.random() * 0.3,
         instrumentalness: Math.random() * 0.5,
         liveness: Math.random() * 0.2,
         valence: Math.random(),
-        tempo: 80 + Math.random() * 100,
+        tempo: real1?.tempo ?? (80 + Math.random() * 100),
         duration_ms: (song1.duration || 180) * 1000,
         time_signature: 4
       }
@@ -57,15 +68,15 @@ class AudioMixer {
       const mockFeatures2 = {
         danceability: 0.7 + Math.random() * 0.3,
         energy: 0.6 + Math.random() * 0.4,
-        key: Math.floor(Math.random() * 12),
+        key: keyIndexToName(real2?.key ?? Math.floor(Math.random() * 12)),
         loudness: -20 + Math.random() * 20,
-        mode: Math.random() > 0.5 ? 1 : 0,
+        mode: real2?.mode ?? (Math.random() > 0.5 ? 1 : 0),
         speechiness: Math.random() * 0.1,
         acousticness: Math.random() * 0.3,
         instrumentalness: Math.random() * 0.5,
         liveness: Math.random() * 0.2,
         valence: Math.random(),
-        tempo: 80 + Math.random() * 100,
+        tempo: real2?.tempo ?? (80 + Math.random() * 100),
         duration_ms: (song2.duration || 180) * 1000,
         time_signature: 4
       }
