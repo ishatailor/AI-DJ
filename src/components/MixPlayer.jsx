@@ -49,7 +49,7 @@ const MixPlayer = ({ mix }) => {
     const clickX = e.clientX - rect.left
     const width = rect.width
     const seekTime = (clickX / width) * mix.structure.totalDuration
-    
+
     if (audioRef.current) {
       audioRef.current.currentTime = seekTime
       setCurrentTime(seekTime)
@@ -89,17 +89,17 @@ const MixPlayer = ({ mix }) => {
           </div>
           <div className="stat-label">Compatibility</div>
         </div>
-        
+
         <div className="stat-item">
           <div className="stat-value">{mix.compatibility.bpmScore}%</div>
           <div className="stat-label">BPM Match</div>
         </div>
-        
+
         <div className="stat-item">
           <div className="stat-value">{mix.compatibility.keyScore}%</div>
           <div className="stat-label">Key Match</div>
         </div>
-        
+
         <div className="stat-item">
           <div className="stat-value">{formatTime(mix.structure.totalDuration)}</div>
           <div className="stat-label">Mix Duration</div>
@@ -133,7 +133,7 @@ const MixPlayer = ({ mix }) => {
       <div className="compatibility-details">
         <h4>Mix Analysis</h4>
         <p><strong>Overall Score:</strong> {getCompatibilityText(mix.compatibility.score)} ({mix.compatibility.score}%)</p>
-        
+
         {mix.compatibility.recommendations.length > 0 && (
           <div className="recommendations">
             <h5>Recommendations:</h5>
@@ -147,7 +147,7 @@ const MixPlayer = ({ mix }) => {
       </div>
 
       <div className="audio-controls">
-        <button 
+        <button
           className="control-btn"
           onClick={togglePlay}
         >
@@ -164,7 +164,7 @@ const MixPlayer = ({ mix }) => {
 
         <div className="progress-container" onClick={handleSeek}>
           <div className="progress-bar">
-            <div 
+            <div
               className="progress-fill"
               style={{ width: `${(currentTime / mix.structure.totalDuration) * 100}%` }}
             ></div>
@@ -195,7 +195,7 @@ const MixPlayer = ({ mix }) => {
         <span>{Math.round(volume * 100)}%</span>
       </div>
 
-      <button 
+      <button
         className="waveform-toggle"
         onClick={() => setShowWaveform(!showWaveform)}
       >

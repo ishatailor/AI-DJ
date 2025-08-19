@@ -42,7 +42,8 @@ function App() {
       }, 500)
 
       const mix = await generateMix(selectedSongs[0], selectedSongs[1])
-      
+      console.log('🎯 MIX GENERATED:', mix)
+
       clearInterval(progressInterval)
       setGenerationProgress(100)
       

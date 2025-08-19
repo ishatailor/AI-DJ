@@ -1,8 +1,8 @@
 import axios from 'axios'
 
-// In a real application, you would get these from environment variables
-const CLIENT_ID = 'your_spotify_client_id'
-const CLIENT_SECRET = 'your_spotify_client_secret'
+// Get these from your Spotify Developer Dashboard
+const CLIENT_ID = '8abeecc3dd25435ea2bd3ed92c080c92'
+const CLIENT_SECRET = 'd0886806678f4cc8b1eb298e871fffe8'
 const REDIRECT_URI = 'http://localhost:3000/callback'
 
 let accessToken = null
@@ -14,7 +14,7 @@ const getAccessToken = async () => {
   }
 
   try {
-    const response = await axios.post('https://accounts.spotify.com/api/token', 
+    const response = await axios.post('https://accounts.spotify.com/api/token',
       'grant_type=client_credentials',
       {
         headers: {
@@ -35,38 +35,55 @@ const getAccessToken = async () => {
 
 export const searchSpotifyTracks = async (query) => {
   console.log('🔍 searchSpotifyTracks called with query:', query)
-  console.log('🔍 Query type:', typeof query)
-  console.log('🔍 Query length:', query.length)
-  
+
   try {
-    // Use the backend API instead of Spotify directly for demo purposes
-    const apiUrl = `/api/search?q=${encodeURIComponent(query)}`
-    console.log('🌐 Making API call to:', apiUrl)
-    console.log('🌐 Encoded query:', encodeURIComponent(query))
-    
-    const response = await axios.get(apiUrl)
-    console.log('✅ API response received:', response)
-    console.log('✅ Response status:', response.status)
-    console.log('✅ Response data type:', typeof response.data)
-    console.log('✅ Response data length:', Array.isArray(response.data) ? response.data.length : 'Not an array')
-    
-    if (response.data && Array.isArray(response.data)) {
-      console.log('📊 Search results:', response.data)
-      console.log('📊 First result:', response.data[0])
-      return response.data
+    const token = await getAccessToken()
+
+    // Real Spotify API call
+    const response = await axios.get(`https://api.spotify.com/v1/search`, {
+      params: {
+        q: query,
+        type: 'track',
+        limit: 20,
+        market: 'US'
+      },
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    console.log('✅ Spotify API response received:', response)
+
+    if (response.data && response.data.tracks && response.data.tracks.items) {
+      const tracks = response.data.tracks.items.map(track => ({
+        id: track.id,
+        name: track.name,
+        artist: track.artists.map(a => a.name).join(', '),
+        album: track.album.name,
+        albumArt: track.album.images[0]?.url || 'https://via.placeholder.com/300x300/1db954/ffffff?text=No+Image',
+        duration: Math.round(track.duration_ms / 1000),
+        uri: track.uri,
+        previewUrl: track.preview_url,
+        externalUrl: track.external_urls.spotify
+      }))
+
+      console.log('📊 Real Spotify tracks:', tracks)
+      return tracks
     } else {
-      console.error('❌ Unexpected response format:', response.data)
-      console.error('❌ Response data type:', typeof response.data)
+      console.error('❌ Unexpected Spotify response format:', response.data)
       return []
     }
   } catch (error) {
-    console.error('❌ Error searching tracks:', error)
-    console.error('❌ Error response:', error.response)
+    console.error('❌ Error searching Spotify tracks:', error)
     console.error('❌ Error details:', error.response?.data || error.message)
-    console.error('❌ Error status:', error.response?.status)
-    
-    // Return empty array if API fails
-    console.log('🔄 API failed, returning empty results')
+
+    if (error.response?.status === 401) {
+      // Token expired, try to refresh
+      accessToken = null
+      tokenExpiry = null
+      console.log('🔄 Token expired, will refresh on next request')
+    }
+
     return []
   }
 }
@@ -74,7 +91,7 @@ export const searchSpotifyTracks = async (query) => {
 export const getTrackFeatures = async (trackId) => {
   try {
     const token = await getAccessToken()
-    
+
     const response = await axios.get(`https://api.spotify.com/v1/audio-features/${trackId}`, {
       headers: {
         'Authorization': `Bearer ${token}`
@@ -91,7 +108,7 @@ export const getTrackFeatures = async (trackId) => {
 export const getTrackAnalysis = async (trackId) => {
   try {
     const token = await getAccessToken()
-    
+
     const response = await axios.get(`https://api.spotify.com/v1/audio-analysis/${trackId}`, {
       headers: {
         'Authorization': `Bearer ${token}`
