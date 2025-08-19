@@ -41,6 +41,11 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
       {error && (
         <div style={{ textAlign: 'center', marginTop: '1rem', color: '#ff6b6b' }}>{error}</div>
       )}
+      {!loading && !error && library.length === 0 && (
+        <div style={{ textAlign: 'center', marginTop: '1rem', opacity: 0.7 }}>
+          No previewable tracks found. Please try again in a moment.
+        </div>
+      )}
 
       <div className="search-grid">
         <div className="search-item" style={{ gridColumn: '1 / -1' }}>
