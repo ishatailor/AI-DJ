@@ -308,6 +308,32 @@ app.get('/api/tracks/:trackId/features', async (req, res) => {
   }
 })
 
+// Simple proxy to fetch remote audio with permissive CORS for decoding/mixing
+app.get('/api/proxy', async (req, res) => {
+  try {
+    const targetUrl = req.query.url
+    if (!targetUrl) {
+      return res.status(400).json({ error: 'Missing url parameter' })
+    }
+
+    const upstream = await fetch(targetUrl)
+    if (!upstream.ok) {
+      return res.status(upstream.status).json({ error: `Upstream error ${upstream.status}` })
+    }
+
+    const contentType = upstream.headers.get('content-type') || 'application/octet-stream'
+    res.set('Access-Control-Allow-Origin', '*')
+    res.set('Content-Type', contentType)
+    res.set('Cache-Control', 'no-cache')
+
+    const buffer = Buffer.from(await upstream.arrayBuffer())
+    res.send(buffer)
+  } catch (err) {
+    console.error('Proxy error:', err)
+    res.status(500).json({ error: 'Proxy failed' })
+  }
+})
+
 function generateMockWaveform() {
   const waveform = []
   const duration = 300 // 5 minutes in seconds

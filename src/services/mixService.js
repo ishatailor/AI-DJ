@@ -155,7 +155,9 @@ class AudioMixer {
   }
 
   async fetchAndDecode(url) {
-    const response = await fetch(url, { mode: 'cors' })
+    // Route through backend proxy to avoid CORS issues on external previews
+    const proxied = `/api/proxy?url=${encodeURIComponent(url)}`
+    const response = await fetch(proxied)
     const arrayBuffer = await response.arrayBuffer()
     // Use a temporary online context to decode if needed
     const ctx = this.audioContext || new (window.AudioContext || window.webkitAudioContext)()
