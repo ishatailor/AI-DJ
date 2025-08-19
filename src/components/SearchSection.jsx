@@ -34,7 +34,18 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
       try {
         setLoading(true)
         setError(null)
-        // Prefer static library.json; fallback to server library
+        // Prefer server library (Spotify-backed); fallback to static file if unavailable
+        try {
+          const serverResp = await fetch('/api/library?limit=150')
+          if (serverResp.ok) {
+            const serverData = await serverResp.json()
+            if (Array.isArray(serverData) && serverData.length > 0) {
+              setLibrary(serverData)
+              return
+            }
+          }
+        } catch {}
+
         const staticResp = await fetch('/library.json')
         if (staticResp.ok) {
           const data = await staticResp.json()
@@ -43,10 +54,8 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
             return
           }
         }
-        const serverResp = await fetch('/api/library?limit=150')
-        if (!serverResp.ok) throw new Error('Server library failed')
-        const serverData = await serverResp.json()
-        setLibrary(Array.isArray(serverData) ? serverData : [])
+        // if both fail, use embedded fallback set below
+        setLibrary(defaultStatic)
       } catch (e) {
         // Use embedded static fallback so UI always shows something
         setLibrary(defaultStatic)
