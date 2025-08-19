@@ -37,9 +37,18 @@ export const searchSpotifyTracks = async (query) => {
   console.log('🔍 searchSpotifyTracks called with query:', query)
 
   try {
-    // For very short queries, do nothing (avoid mock fallback)
+    // For very short queries, return local previewable mock results
     if (!query || query.trim().length < 2) {
-      return []
+      try {
+        const fallback = await axios.get('/api/search', { params: { q: query } })
+        const items = Array.isArray(fallback.data) ? fallback.data : []
+        const filtered = items.filter(t => Boolean(t.previewUrl)).slice(0, 20)
+        console.log('📊 Fallback (short query) previewable tracks from local API:', filtered)
+        return filtered
+      } catch (e) {
+        console.log('⚠️ Local fallback (short query) search failed:', e?.message || e)
+        return []
+      }
     }
 
     const token = await getAccessToken()
@@ -110,8 +119,17 @@ export const searchSpotifyTracks = async (query) => {
       tokenExpiry = null
       console.log('🔄 Token expired, will refresh on next request')
     }
-    // On error, return empty results (no mock fallback)
-    return []
+    // On error, fall back to local previewable mock results
+    try {
+      const fallback = await axios.get('/api/search', { params: { q: query } })
+      const items = Array.isArray(fallback.data) ? fallback.data : []
+      const filtered = items.filter(t => Boolean(t.previewUrl)).slice(0, 20)
+      console.log('📊 Fallback (error path) previewable tracks from local API:', filtered)
+      return filtered
+    } catch (e) {
+      console.log('⚠️ Local fallback (error path) search failed:', e?.message || e)
+      return []
+    }
   }
 }
 
