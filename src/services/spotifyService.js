@@ -40,14 +40,14 @@ export const searchSpotifyTracks = async (query) => {
     const token = await getAccessToken()
 
     // Helper to fetch one page
-    const fetchPage = async (offset) => {
+    const fetchPage = async (offset, market) => {
       const resp = await axios.get(`https://api.spotify.com/v1/search`, {
         params: {
           q: query,
           type: 'track',
           limit: 50,
           offset,
-          market: 'US'
+          market
         },
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -56,33 +56,49 @@ export const searchSpotifyTracks = async (query) => {
 
     const desiredCount = 20
     const offsets = [0, 50, 100, 150]
+    const marketsToTry = ['from_token', 'US', 'GB', 'DE', 'CA', 'BR']
     const previewable = []
     const seen = new Set()
 
-    for (const offset of offsets) {
-      const response = await fetchPage(offset)
-      console.log('✅ Spotify API response received:', response)
-      const items = response?.data?.tracks?.items || []
-      for (const track of items) {
-        if (!track?.preview_url) continue
-        if (seen.has(track.id)) continue
-        seen.add(track.id)
-        previewable.push({
-          id: track.id,
-          name: track.name,
-          artist: track.artists.map(a => a.name).join(', '),
-          album: track.album.name,
-          albumArt: track.album.images[0]?.url || 'https://via.placeholder.com/300x300/1db954/ffffff?text=No+Image',
-          duration: Math.round(track.duration_ms / 1000),
-          uri: track.uri,
-          previewUrl: track.preview_url,
-          externalUrl: track.external_urls.spotify
-        })
+    for (const market of marketsToTry) {
+      for (const offset of offsets) {
+        const response = await fetchPage(offset, market)
+        console.log('✅ Spotify API response received:', response)
+        const items = response?.data?.tracks?.items || []
+        for (const track of items) {
+          if (!track?.preview_url) continue
+          if (seen.has(track.id)) continue
+          seen.add(track.id)
+          previewable.push({
+            id: track.id,
+            name: track.name,
+            artist: track.artists.map(a => a.name).join(', '),
+            album: track.album.name,
+            albumArt: track.album.images[0]?.url || 'https://via.placeholder.com/300x300/1db954/ffffff?text=No+Image',
+            duration: Math.round(track.duration_ms / 1000),
+            uri: track.uri,
+            previewUrl: track.preview_url,
+            externalUrl: track.external_urls.spotify
+          })
+          if (previewable.length >= desiredCount) break
+        }
         if (previewable.length >= desiredCount) break
+        const total = response?.data?.tracks?.total ?? 0
+        if (offset + 50 >= total) break
       }
       if (previewable.length >= desiredCount) break
-      const total = response?.data?.tracks?.total ?? 0
-      if (offset + 50 >= total) break
+    }
+
+    if (previewable.length === 0) {
+      try {
+        const fallback = await axios.get('/api/search', { params: { q: query } })
+        const items = Array.isArray(fallback.data) ? fallback.data : []
+        const filtered = items.filter(t => Boolean(t.previewUrl)).slice(0, desiredCount)
+        console.log('📊 Fallback previewable tracks from local API:', filtered)
+        return filtered
+      } catch (e) {
+        console.log('⚠️ Local fallback search failed:', e?.message || e)
+      }
     }
 
     console.log('📊 Real Spotify tracks (previewable only):', previewable)
