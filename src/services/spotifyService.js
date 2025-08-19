@@ -7,6 +7,8 @@ const REDIRECT_URI = 'http://localhost:3000/callback'
 
 let accessToken = null
 let tokenExpiry = null
+// Simple in-memory cache to reduce Spotify API calls and avoid 429
+const searchCache = new Map() // key: string, value: { data: any[], expires: number }
 
 const getAccessToken = async () => {
   if (accessToken && tokenExpiry && Date.now() < tokenExpiry) {
@@ -42,13 +44,20 @@ export const searchSpotifyTracks = async (query) => {
       return []
     }
 
+    const normalized = query.trim().toLowerCase()
+    const cacheKey = `q:${normalized}`
+    const cached = searchCache.get(cacheKey)
+    if (cached && cached.expires > Date.now()) {
+      return cached.data
+    }
+
     const token = await getAccessToken()
 
     // Helper to fetch one page
-    const fetchPage = async (offset, market) => {
+    const fetchPage = async (offset, market, q) => {
       const resp = await axios.get(`https://api.spotify.com/v1/search`, {
         params: {
-          q: query,
+          q,
           type: 'track',
           limit: 50,
           offset,
@@ -60,34 +69,36 @@ export const searchSpotifyTracks = async (query) => {
     }
 
     const desiredCount = 20
-    const offsets = [0, 50, 100]
-    const marketsToTry = [
-      'US','GB','DE','CA','BR','SE','NO','FI','DK','FR','NL','IE','ES','PT','IT','PL','AU','NZ','JP','MX','AR','CL','IN','ID','PH','SG','MY','TH','TR','AE'
-    ]
+    const offsets = [0] // keep low to avoid rate limit
+    const marketsToTry = ['US', 'GB', 'DE'] // small set to reduce calls
     const baseQuery = query.trim()
-    const queryVariations = new Set()
-    queryVariations.add(baseQuery)
-    queryVariations.add(`track:${baseQuery}`)
-    queryVariations.add(`artist:${baseQuery}`)
-    if (baseQuery.includes(' ')) {
-      const parts = baseQuery.split(/\s+/)
-      if (parts.length >= 2) {
-        const first = parts[0]
-        const rest = parts.slice(1).join(' ')
-        queryVariations.add(`artist:${first} track:${rest}`)
-        queryVariations.add(`track:${first} artist:${rest}`)
-      }
-    }
+    const queryVariations = [baseQuery, `track:${baseQuery}`, `artist:${baseQuery}`]
+
     const previewable = []
     const seen = new Set()
+    let requestCount = 0
+    const maxRequests = 5
 
     for (const q of queryVariations) {
+      if (requestCount >= maxRequests) break
       for (const market of marketsToTry) {
+        if (requestCount >= maxRequests) break
         for (const offset of offsets) {
-          const resp = await axios.get(`https://api.spotify.com/v1/search`, {
-            params: { q, type: 'track', limit: 50, offset, market },
-            headers: { 'Authorization': `Bearer ${token}` }
-          })
+          if (requestCount >= maxRequests) break
+          let resp
+          try {
+            resp = await fetchPage(offset, market, q)
+          } catch (err) {
+            const status = err?.response?.status
+            if (status === 429) {
+              console.log('🔒 Rate limited (429) — stopping further requests for this search')
+              requestCount = maxRequests
+              break
+            }
+            // other errors: skip this attempt
+            continue
+          }
+          requestCount++
           console.log('✅ Spotify API response received:', resp)
           const items = resp?.data?.tracks?.items || []
           for (const track of items) {
@@ -117,11 +128,14 @@ export const searchSpotifyTracks = async (query) => {
     }
 
     if (previewable.length === 0) {
+      searchCache.set(cacheKey, { data: [], expires: Date.now() + 60 * 1000 })
       return []
     }
 
     console.log('📊 Real Spotify tracks (previewable only):', previewable)
-    return previewable
+    const limited = previewable.slice(0, desiredCount)
+    searchCache.set(cacheKey, { data: limited, expires: Date.now() + 2 * 60 * 1000 })
+    return limited
   } catch (error) {
     console.error('❌ Error searching Spotify tracks:', error)
     console.error('❌ Error details:', error.response?.data || error.message)
