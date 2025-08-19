@@ -328,12 +328,18 @@ async function getSpotifyToken() {
   return json.access_token
 }
 
-async function fetchRecommendations(token, { limit = 50, market = 'US', seedGenres = ['pop','dance','edm','rock'] } = {}) {
+async function fetchRecommendations(token, { limit = 50, market = 'US', seedGenres, seedArtists } = {}) {
   const params = new URLSearchParams({
     limit: String(Math.min(limit, 50)),
-    market,
-    seed_genres: seedGenres.join(',')
+    market
   })
+  if (seedArtists && seedArtists.length) {
+    params.set('seed_artists', seedArtists.join(','))
+  } else if (seedGenres && seedGenres.length) {
+    params.set('seed_genres', seedGenres.join(','))
+  } else {
+    params.set('seed_genres', ['pop','dance','edm','rock'].join(','))
+  }
   const resp = await fetch(`https://api.spotify.com/v1/recommendations?${params}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   })
@@ -360,16 +366,17 @@ app.get('/api/library', async (req, res) => {
     const totalLimit = Math.min(parseInt(req.query.limit || '120', 10), 200)
     const token = await getSpotifyToken()
     const markets = ['US','GB','DE','SE','AU']
-    const genreBatches = [
-      ['pop','dance','edm','rock'],
-      ['house','electronic','hip-hop','indie'],
-      ['latin','k-pop','r-n-b','alternative']
+    // Known popular artist IDs to seed recs (Queen, Calvin Harris, Dua Lipa, The Weeknd, David Guetta)
+    const artistSeedBatches = [
+      ['1dfeR4HaWDbWqFHLkxsg1d','7CajN1mjk4x88C7wXbo7Sd','6M2wZ9GZgrQXHCFfjv46we'],
+      ['1Xyo4u8uXC1ZmMpatF05PJ','1Cs0zKBU1kc0i8ypK3B9ai'],
+      ['3TVXtAsR1Inumwj472S9r4','53XhwfbYqKCa1cC15pYq2q']
     ]
     const seen = new Set()
     const library = []
     for (const market of markets) {
-      for (const seeds of genreBatches) {
-        const recs = await fetchRecommendations(token, { limit: 50, market, seedGenres: seeds })
+      for (const seeds of artistSeedBatches) {
+        const recs = await fetchRecommendations(token, { limit: 50, market, seedArtists: seeds })
         for (const t of recs) {
           if (seen.has(t.id)) continue
           seen.add(t.id)
