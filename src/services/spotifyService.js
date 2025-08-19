@@ -39,9 +39,14 @@ export const searchSpotifyTracks = async (query) => {
   console.log('🔍 searchSpotifyTracks called with query:', query)
 
   try {
-    // For very short queries, return empty results to force real Spotify previews only
+    // If query is empty or very short, show a previewable recommendations shelf
     if (!query || query.trim().length < 2) {
-      return []
+      try {
+        const recs = await getPreviewableRecommendations(30, 'US')
+        return recs
+      } catch {
+        return []
+      }
     }
 
     const normalized = query.trim().toLowerCase()
@@ -128,8 +133,15 @@ export const searchSpotifyTracks = async (query) => {
     }
 
     if (previewable.length === 0) {
-      searchCache.set(cacheKey, { data: [], expires: Date.now() + 60 * 1000 })
-      return []
+      // As a fallback, show generic previewable recommendations so users can still pick two songs
+      try {
+        const recs = await getPreviewableRecommendations(30, 'US')
+        searchCache.set(cacheKey, { data: recs, expires: Date.now() + 60 * 1000 })
+        return recs
+      } catch {
+        searchCache.set(cacheKey, { data: [], expires: Date.now() + 60 * 1000 })
+        return []
+      }
     }
 
     console.log('📊 Real Spotify tracks (previewable only):', previewable)
@@ -183,4 +195,33 @@ export const getTrackAnalysis = async (trackId) => {
     console.error('Error getting track analysis:', error)
     throw new Error('Failed to get track analysis')
   }
+}
+
+// Fetch a shelf of previewable tracks from Spotify recommendations
+const getPreviewableRecommendations = async (limit = 30, market = 'US') => {
+  const token = await getAccessToken()
+  // Use a small set of broad seed genres to get mainstream content
+  const seedGenres = ['pop', 'dance', 'edm', 'rock']
+  const resp = await axios.get('https://api.spotify.com/v1/recommendations', {
+    params: {
+      limit: Math.min(limit, 50),
+      market,
+      seed_genres: seedGenres.join(',')
+    },
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  const tracks = (resp?.data?.tracks || [])
+    .filter(t => Boolean(t?.preview_url))
+    .map(track => ({
+      id: track.id,
+      name: track.name,
+      artist: track.artists.map(a => a.name).join(', '),
+      album: track.album.name,
+      albumArt: track.album.images[0]?.url || 'https://via.placeholder.com/300x300/1db954/ffffff?text=No+Image',
+      duration: Math.round(track.duration_ms / 1000),
+      uri: track.uri,
+      previewUrl: track.preview_url,
+      externalUrl: track.external_urls.spotify
+    }))
+  return tracks
 }
