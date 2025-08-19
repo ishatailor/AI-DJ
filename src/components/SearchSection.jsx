@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { fetchPreviewLibrary } from '../services/spotifyService'
 
 const LibrarySection = ({ selectedSongs, onSongSelect }) => {
   const [library, setLibrary] = useState([])
@@ -11,8 +10,19 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
       try {
         setLoading(true)
         setError(null)
-        const items = await fetchPreviewLibrary(150)
-        setLibrary(items)
+        // Prefer static library.json; fallback to server library
+        const staticResp = await fetch('/library.json')
+        if (staticResp.ok) {
+          const data = await staticResp.json()
+          if (Array.isArray(data) && data.length > 0) {
+            setLibrary(data)
+            return
+          }
+        }
+        const serverResp = await fetch('/api/library?limit=150')
+        if (!serverResp.ok) throw new Error('Server library failed')
+        const serverData = await serverResp.json()
+        setLibrary(Array.isArray(serverData) ? serverData : [])
       } catch (e) {
         setError('Failed to load library')
       } finally {
@@ -47,25 +57,35 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
         </div>
       )}
 
-      <div className="search-grid">
-        <div className="search-item" style={{ gridColumn: '1 / -1' }}>
-          <div className="search-results" style={{ maxHeight: 500, overflowY: 'auto' }}>
-            {library.map((track) => (
-              <div
-                key={track.id}
-                className="search-result-item"
-                onClick={() => handleSongClick(track)}
-                style={{ cursor: 'pointer' }}
-              >
-                <img src={track.albumArt} alt={track.album} />
-                <div className="search-result-info">
-                  <h4>{track.name}</h4>
-                  <p>{track.artist} • {track.album}</p>
-                </div>
-              </div>
-            ))}
+      {/* Selected */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        {[0,1].map(idx => (
+          <div key={idx} style={{ padding: '0.5rem 0.75rem', borderRadius: 8, background: 'rgba(255,255,255,0.08)' }}>
+            {selectedSongs[idx] ? `${idx===0?'A':'B'}: ${selectedSongs[idx].name} – ${selectedSongs[idx].artist}` : `${idx===0?'A':'B'}: Select a track`}
           </div>
-        </div>
+        ))}
+      </div>
+
+      {/* Library as buttons */}
+      <div className="search-results" style={{ maxHeight: 520, overflowY: 'auto' }}>
+        {library.map((track) => (
+          <button
+            key={track.id}
+            className="search-result-item"
+            onClick={() => handleSongClick(track)}
+            style={{
+              display: 'flex', alignItems: 'center', width: '100%', textAlign: 'left',
+              background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8,
+              padding: '0.5rem', marginBottom: '0.5rem', cursor: 'pointer'
+            }}
+          >
+            <img src={track.albumArt} alt={track.album} />
+            <div className="search-result-info">
+              <h4>{track.name}</h4>
+              <p>{track.artist} • {track.album}</p>
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   )
