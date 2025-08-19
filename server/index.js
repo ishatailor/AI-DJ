@@ -2,6 +2,7 @@ const express = require('express')
 const cors = require('cors')
 const multer = require('multer')
 const path = require('path')
+const fs = require('fs')
 require('dotenv').config()
 
 const app = express()
@@ -388,7 +389,8 @@ app.get('/api/library', async (req, res) => {
   try {
     const totalLimit = Math.min(parseInt(req.query.limit || '120', 10), 200)
     const token = await getSpotifyToken()
-    const markets = ['US','GB','DE','SE','AU']
+    const envMarkets = (process.env.SPOTIFY_MARKETS || process.env.SPOTIFY_MARKET || 'US,GB,DE').split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
+    const markets = envMarkets.length ? envMarkets : ['US','GB','DE']
     const seen = new Set()
     const library = []
     const queries = ['love','time','night','dance','remix','feat','live','the','you','me','sun','moon','heart','beat','club']
@@ -413,9 +415,35 @@ app.get('/api/library', async (req, res) => {
       }
       if (library.length >= totalLimit) break
     }
+    if (library.length === 0) {
+      // Server-side static fallback from public or dist
+      try {
+        const publicPath = path.join(__dirname, '..', 'public', 'library.json')
+        const distPath = path.join(__dirname, '..', 'dist', 'library.json')
+        const filePath = fs.existsSync(publicPath) ? publicPath : (fs.existsSync(distPath) ? distPath : null)
+        if (filePath) {
+          const raw = fs.readFileSync(filePath, 'utf-8')
+          const json = JSON.parse(raw)
+          return res.json(Array.isArray(json) ? json : [])
+        }
+      } catch (e) {
+        console.warn('Static library fallback failed:', e.message)
+      }
+    }
     res.json(library)
   } catch (e) {
-    console.error('Library error:', e)
+    console.error('Library error:', e?.message || e)
+    // Best-effort static fallback even on errors
+    try {
+      const publicPath = path.join(__dirname, '..', 'public', 'library.json')
+      const distPath = path.join(__dirname, '..', 'dist', 'library.json')
+      const filePath = fs.existsSync(publicPath) ? publicPath : (fs.existsSync(distPath) ? distPath : null)
+      if (filePath) {
+        const raw = fs.readFileSync(filePath, 'utf-8')
+        const json = JSON.parse(raw)
+        return res.json(Array.isArray(json) ? json : [])
+      }
+    } catch {}
     res.status(500).json({ error: 'Failed to build library' })
   }
 })
