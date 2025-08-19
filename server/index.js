@@ -308,6 +308,85 @@ app.get('/api/tracks/:trackId/features', async (req, res) => {
   }
 })
 
+// --- Spotify library (previewable tracks) ---
+const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || '8abeecc3dd25435ea2bd3ed92c080c92'
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || 'd0886806678f4cc8b1eb298e871fffe8'
+
+async function getSpotifyToken() {
+  const resp = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': 'Basic ' + Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')
+    },
+    body: 'grant_type=client_credentials'
+  })
+  if (!resp.ok) {
+    throw new Error(`Spotify auth failed: ${resp.status}`)
+  }
+  const json = await resp.json()
+  return json.access_token
+}
+
+async function fetchRecommendations(token, { limit = 50, market = 'US', seedGenres = ['pop','dance','edm','rock'] } = {}) {
+  const params = new URLSearchParams({
+    limit: String(Math.min(limit, 50)),
+    market,
+    seed_genres: seedGenres.join(',')
+  })
+  const resp = await fetch(`https://api.spotify.com/v1/recommendations?${params}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  if (!resp.ok) {
+    throw new Error(`Spotify recommendations failed: ${resp.status}`)
+  }
+  const json = await resp.json()
+  const items = Array.isArray(json.tracks) ? json.tracks : []
+  return items.filter(t => t?.preview_url).map(track => ({
+    id: track.id,
+    name: track.name,
+    artist: track.artists.map(a => a.name).join(', '),
+    album: track.album.name,
+    albumArt: track.album.images?.[0]?.url || 'https://via.placeholder.com/300x300/1db954/ffffff?text=No+Image',
+    duration: Math.round((track.duration_ms || 0) / 1000),
+    uri: track.uri,
+    previewUrl: track.preview_url,
+    externalUrl: track.external_urls?.spotify
+  }))
+}
+
+app.get('/api/library', async (req, res) => {
+  try {
+    const totalLimit = Math.min(parseInt(req.query.limit || '120', 10), 200)
+    const token = await getSpotifyToken()
+    const markets = ['US','GB','DE','SE','AU']
+    const genreBatches = [
+      ['pop','dance','edm','rock'],
+      ['house','electronic','hip-hop','indie'],
+      ['latin','k-pop','r-n-b','alternative']
+    ]
+    const seen = new Set()
+    const library = []
+    for (const market of markets) {
+      for (const seeds of genreBatches) {
+        const recs = await fetchRecommendations(token, { limit: 50, market, seedGenres: seeds })
+        for (const t of recs) {
+          if (seen.has(t.id)) continue
+          seen.add(t.id)
+          library.push(t)
+          if (library.length >= totalLimit) break
+        }
+        if (library.length >= totalLimit) break
+      }
+      if (library.length >= totalLimit) break
+    }
+    res.json(library)
+  } catch (e) {
+    console.error('Library error:', e)
+    res.status(500).json({ error: 'Failed to build library' })
+  }
+})
+
 // Simple proxy to fetch remote audio with permissive CORS for decoding/mixing
 app.get('/api/proxy', async (req, res) => {
   try {
