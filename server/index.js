@@ -361,11 +361,34 @@ async function fetchRecommendations(token, { limit = 50, market = 'US', seedGenr
   }))
 }
 
+async function fetchSearchPreviewables(token, { q, limit = 50, market = 'US', offset = 0 } = {}) {
+  const params = new URLSearchParams({ q, type: 'track', limit: String(Math.min(limit, 50)), market, offset: String(offset) })
+  const resp = await fetch(`https://api.spotify.com/v1/search?${params}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  if (!resp.ok) {
+    throw new Error(`Spotify search failed: ${resp.status}`)
+  }
+  const json = await resp.json()
+  const items = json?.tracks?.items || []
+  return items.filter(t => t?.preview_url).map(track => ({
+    id: track.id,
+    name: track.name,
+    artist: track.artists.map(a => a.name).join(', '),
+    album: track.album.name,
+    albumArt: track.album.images?.[0]?.url || 'https://via.placeholder.com/300x300/1db954/ffffff?text=No+Image',
+    duration: Math.round((track.duration_ms || 0) / 1000),
+    uri: track.uri,
+    previewUrl: track.preview_url,
+    externalUrl: track.external_urls?.spotify
+  }))
+}
+
 app.get('/api/library', async (req, res) => {
   try {
     const totalLimit = Math.min(parseInt(req.query.limit || '120', 10), 200)
     const token = await getSpotifyToken()
-    const markets = ['US','GB','DE','SE','AU']
+    const markets = ['US','GB','DE']
     // Known popular artist IDs to seed recs (Queen, Calvin Harris, Dua Lipa, The Weeknd, David Guetta)
     const artistSeedBatches = [
       ['1dfeR4HaWDbWqFHLkxsg1d','7CajN1mjk4x88C7wXbo7Sd','6M2wZ9GZgrQXHCFfjv46we'],
@@ -375,16 +398,38 @@ app.get('/api/library', async (req, res) => {
     const seen = new Set()
     const library = []
     for (const market of markets) {
-      for (const seeds of artistSeedBatches) {
-        const recs = await fetchRecommendations(token, { limit: 50, market, seedArtists: seeds })
-        for (const t of recs) {
-          if (seen.has(t.id)) continue
-          seen.add(t.id)
-          library.push(t)
+      // Try recommendations first; if they fail, use search-based fallback
+      let recOk = false
+      try {
+        for (const seeds of artistSeedBatches) {
+          const recs = await fetchRecommendations(token, { limit: 50, market, seedArtists: seeds })
+          for (const t of recs) {
+            if (seen.has(t.id)) continue
+            seen.add(t.id)
+            library.push(t)
+            if (library.length >= totalLimit) break
+          }
           if (library.length >= totalLimit) break
         }
-        if (library.length >= totalLimit) break
+        recOk = true
+      } catch (e) {
+        console.warn('Recommendations failed, falling back to search:', e.message)
       }
+
+      if (!recOk || library.length < totalLimit) {
+        const queries = ['love','live','mix','the','you','dance','remix']
+        for (const q of queries) {
+          const results = await fetchSearchPreviewables(token, { q, limit: 50, market, offset: 0 })
+          for (const t of results) {
+            if (seen.has(t.id)) continue
+            seen.add(t.id)
+            library.push(t)
+            if (library.length >= totalLimit) break
+          }
+          if (library.length >= totalLimit) break
+        }
+      }
+
       if (library.length >= totalLimit) break
     }
     res.json(library)
