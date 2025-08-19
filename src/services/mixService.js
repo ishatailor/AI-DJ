@@ -94,8 +94,14 @@ class AudioMixer {
       mixStructure.totalDuration = PREVIEW_DURATION
       console.log('🏗️ Mix structure generated:', mixStructure)
 
-      // Use a Spotify preview URL (30s) as the audio source
-      const audioUrl = song1.previewUrl || song2.previewUrl
+      // Render a real 30s overlay mix from both previews (tempo-aligned, EQ'd)
+      let audioUrl = null
+      try {
+        audioUrl = await this.generateOverlayPreviewMix(track1, track2, 30)
+      } catch (mixErr) {
+        console.log('⚠️ Overlay mix rendering failed, falling back to a single preview URL:', mixErr?.message || mixErr)
+        audioUrl = song1.previewUrl || song2.previewUrl
+      }
 
       // Create the complete mix object with ALL required properties
       const mix = {
@@ -135,6 +141,98 @@ class AudioMixer {
       console.error('❌ Mix creation failed:', error)
       throw new Error(`Failed to create mix: ${error.message}`)
     }
+  }
+
+  async fetchAndDecode(url) {
+    const response = await fetch(url, { mode: 'cors' })
+    const arrayBuffer = await response.arrayBuffer()
+    // Use a temporary online context to decode if needed
+    const ctx = this.audioContext || new (window.AudioContext || window.webkitAudioContext)()
+    return await ctx.decodeAudioData(arrayBuffer)
+  }
+
+  async generateOverlayPreviewMix(track1, track2, durationSec = 30) {
+    const sr = 44100
+    const channels = 2
+    const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(channels, sr * durationSec, sr)
+
+    const master = ctx.createGain()
+    master.gain.value = 1.0
+    const compressor = ctx.createDynamicsCompressor()
+    compressor.threshold.value = -8
+    compressor.knee.value = 20
+    compressor.ratio.value = 3
+    compressor.attack.value = 0.003
+    compressor.release.value = 0.25
+    master.connect(compressor).connect(ctx.destination)
+
+    // Decode previews
+    const [buf1, buf2] = await Promise.all([
+      this.fetchAndDecode(track1.previewUrl),
+      this.fetchAndDecode(track2.previewUrl)
+    ])
+
+    // Target BPM as weighted average, clamp playbackRate range for quality
+    const targetBpm = Math.max(70, Math.min(150, Math.round(((track1.bpm || 120) * 0.6 + (track2.bpm || 120) * 0.4))))
+    const rate1 = Math.max(0.85, Math.min(1.25, targetBpm / (track1.bpm || 120)))
+    const rate2 = Math.max(0.85, Math.min(1.25, targetBpm / (track2.bpm || 120)))
+
+    const src1 = ctx.createBufferSource()
+    src1.buffer = buf1
+    src1.playbackRate.value = rate1
+    const src2 = ctx.createBufferSource()
+    src2.buffer = buf2
+    src2.playbackRate.value = rate2
+
+    // Track 1 chain (keep lows), light mid dip
+    const g1 = ctx.createGain()
+    const p1 = ctx.createBiquadFilter()
+    p1.type = 'peaking'
+    p1.frequency.value = 300
+    p1.Q.value = 1
+    p1.gain.value = -1.5
+    src1.connect(p1).connect(g1).connect(master)
+
+    // Track 2 chain (highpass to avoid low-end clash)
+    const g2 = ctx.createGain()
+    const hp2 = ctx.createBiquadFilter()
+    hp2.type = 'highpass'
+    hp2.frequency.value = 120
+    hp2.Q.value = 0.707
+    src2.connect(hp2).connect(g2).connect(master)
+
+    // Scheduling
+    // Track 1: fade in 0-2s to 1.0; duck when track2 comes in; fade out 20-30s
+    g1.gain.setValueAtTime(0.0, 0)
+    g1.gain.linearRampToValueAtTime(1.0, 2.0)
+    // Duck around track2 entry window 8-12s
+    g1.gain.linearRampToValueAtTime(0.6, 10.0)
+    // Recover a bit 12-20s
+    g1.gain.linearRampToValueAtTime(0.85, 20.0)
+    // Fade out
+    g1.gain.linearRampToValueAtTime(0.0, durationSec)
+
+    // Track 2: start at 8s, fade in to 0.9 by 10s, ride, then slight lift to end
+    const t2Start = 8.0
+    g2.gain.setValueAtTime(0.0, t2Start)
+    g2.gain.linearRampToValueAtTime(0.9, t2Start + 2.0)
+    g2.gain.linearRampToValueAtTime(1.0, durationSec)
+
+    // Start offsets to avoid cold intros
+    const off1 = Math.min(10, Math.max(0, buf1.duration * 0.1))
+    const off2 = Math.min(10, Math.max(0, buf2.duration * 0.2))
+
+    const maxDur1 = Math.min(durationSec, (buf1.duration - off1) / rate1)
+    const maxDur2 = Math.min(Math.max(0, durationSec - t2Start), (buf2.duration - off2) / rate2)
+
+    src1.start(0, off1, Math.max(0, maxDur1))
+    src2.start(t2Start, off2, Math.max(0, maxDur2))
+
+    const renderedBuffer = await ctx.startRendering()
+    const wav = this.audioBufferToWav(renderedBuffer)
+    const blob = new Blob([wav], { type: 'audio/wav' })
+    const url = URL.createObjectURL(blob)
+    return url
   }
 
   playMix() {
