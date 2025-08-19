@@ -198,10 +198,8 @@ export const getTrackAnalysis = async (trackId) => {
 }
 
 // Fetch a shelf of previewable tracks from Spotify recommendations
-const getPreviewableRecommendations = async (limit = 30, market = 'US') => {
+const getPreviewableRecommendations = async (limit = 30, market = 'US', seedGenres = ['pop','dance','edm','rock']) => {
   const token = await getAccessToken()
-  // Use a small set of broad seed genres to get mainstream content
-  const seedGenres = ['pop', 'dance', 'edm', 'rock']
   const resp = await axios.get('https://api.spotify.com/v1/recommendations', {
     params: {
       limit: Math.min(limit, 50),
@@ -224,4 +222,28 @@ const getPreviewableRecommendations = async (limit = 30, market = 'US') => {
       externalUrl: track.external_urls.spotify
     }))
   return tracks
+}
+
+export const fetchPreviewLibrary = async (totalLimit = 120) => {
+  const markets = ['US','GB','DE','SE','AU']
+  const genreBatches = [
+    ['pop','dance','edm','rock'],
+    ['house','electronic','hip-hop','indie'],
+    ['latin','k-pop','r-n-b','alternative']
+  ]
+  const seen = new Set()
+  const library = []
+  for (const market of markets) {
+    for (const seeds of genreBatches) {
+      const batch = await getPreviewableRecommendations(50, market, seeds)
+      for (const t of batch) {
+        if (seen.has(t.id)) continue
+        seen.add(t.id)
+        library.push(t)
+        if (library.length >= totalLimit) return library
+      }
+    }
+    if (library.length >= totalLimit) break
+  }
+  return library
 }
