@@ -108,10 +108,21 @@ class AudioMixer {
       // Render a real 30s overlay mix from both previews (tempo-aligned, EQ'd)
       let audioUrl = null
       try {
+        console.log('🎵 Generating real overlay mix...')
         audioUrl = await this.generateOverlayPreviewMix(track1, track2, 30)
+        console.log('✅ Real overlay mix generated successfully!')
       } catch (mixErr) {
-        console.log('⚠️ Overlay mix rendering failed, falling back to a single preview URL:', mixErr?.message || mixErr)
-        audioUrl = song1.previewUrl || song2.previewUrl
+        console.error('❌ Overlay mix rendering failed:', mixErr?.message || mixErr)
+        console.log('🔄 Attempting fallback mix generation...')
+        
+        // Try a simpler fallback approach - create a basic crossfade
+        try {
+          audioUrl = await this.generateSimpleCrossfade(track1, track2, 30)
+          console.log('✅ Fallback crossfade mix generated')
+        } catch (fallbackErr) {
+          console.error('❌ Fallback mix also failed:', fallbackErr?.message || fallbackErr)
+          throw new Error('Failed to generate any type of mix. Please try again.')
+        }
       }
 
       // Create the complete mix object with ALL required properties
@@ -165,87 +176,180 @@ class AudioMixer {
   }
 
   async generateOverlayPreviewMix(track1, track2, durationSec = 30) {
-    const sr = 44100
-    const channels = 2
-    const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(channels, sr * durationSec, sr)
+    try {
+      console.log('🎵 Starting overlay mix generation for:', track1.name, '+', track2.name)
+      
+      const sr = 44100
+      const channels = 2
+      const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(channels, sr * durationSec, sr)
 
-    const master = ctx.createGain()
-    master.gain.value = 1.0
-    const compressor = ctx.createDynamicsCompressor()
-    compressor.threshold.value = -8
-    compressor.knee.value = 20
-    compressor.ratio.value = 3
-    compressor.attack.value = 0.003
-    compressor.release.value = 0.25
-    master.connect(compressor).connect(ctx.destination)
+      const master = ctx.createGain()
+      master.gain.value = 1.0
+      const compressor = ctx.createDynamicsCompressor()
+      compressor.threshold.value = -8
+      compressor.knee.value = 20
+      compressor.ratio.value = 3
+      compressor.attack.value = 0.003
+      compressor.release.value = 0.25
+      master.connect(compressor).connect(ctx.destination)
 
-    // Decode previews
-    const [buf1, buf2] = await Promise.all([
-      this.fetchAndDecode(track1.previewUrl),
-      this.fetchAndDecode(track2.previewUrl)
-    ])
+      // Decode previews with error handling
+      console.log('🔍 Decoding audio buffers...')
+      let buf1, buf2
+      try {
+        [buf1, buf2] = await Promise.all([
+          this.fetchAndDecode(track1.previewUrl),
+          this.fetchAndDecode(track2.previewUrl)
+        ])
+        console.log('✅ Audio buffers decoded successfully')
+      } catch (decodeError) {
+        console.error('❌ Audio decoding failed:', decodeError)
+        throw new Error(`Failed to decode audio: ${decodeError.message}`)
+      }
 
-    // Target BPM as weighted average, clamp playbackRate range for quality
-    const targetBpm = Math.max(70, Math.min(150, Math.round(((track1.bpm || 120) * 0.6 + (track2.bpm || 120) * 0.4))))
-    const rate1 = Math.max(0.85, Math.min(1.25, targetBpm / (track1.bpm || 120)))
-    const rate2 = Math.max(0.85, Math.min(1.25, targetBpm / (track2.bpm || 120)))
+      // Target BPM as weighted average, clamp playbackRate range for quality
+      const targetBpm = Math.max(70, Math.min(150, Math.round(((track1.bpm || 120) * 0.6 + (track2.bpm || 120) * 0.4))))
+      const rate1 = Math.max(0.85, Math.min(1.25, targetBpm / (track1.bpm || 120)))
+      const rate2 = Math.max(0.85, Math.min(1.25, targetBpm / (track2.bpm || 120)))
+      
+      console.log('🎯 BPM alignment - Target:', targetBpm, 'Rate1:', rate1.toFixed(2), 'Rate2:', rate2.toFixed(2))
 
-    const src1 = ctx.createBufferSource()
-    src1.buffer = buf1
-    src1.playbackRate.value = rate1
-    const src2 = ctx.createBufferSource()
-    src2.buffer = buf2
-    src2.playbackRate.value = rate2
+      const src1 = ctx.createBufferSource()
+      src1.buffer = buf1
+      src1.playbackRate.value = rate1
+      const src2 = ctx.createBufferSource()
+      src2.buffer = buf2
+      src2.playbackRate.value = rate2
 
-    // Track 1 chain (keep lows), light mid dip
-    const g1 = ctx.createGain()
-    const p1 = ctx.createBiquadFilter()
-    p1.type = 'peaking'
-    p1.frequency.value = 300
-    p1.Q.value = 1
-    p1.gain.value = -1.5
-    src1.connect(p1).connect(g1).connect(master)
+      // Track 1 chain (keep lows), light mid dip
+      const g1 = ctx.createGain()
+      const p1 = ctx.createBiquadFilter()
+      p1.type = 'peaking'
+      p1.frequency.value = 300
+      p1.Q.value = 1
+      p1.gain.value = -1.5
+      src1.connect(p1).connect(g1).connect(master)
 
-    // Track 2 chain (highpass to avoid low-end clash)
-    const g2 = ctx.createGain()
-    const hp2 = ctx.createBiquadFilter()
-    hp2.type = 'highpass'
-    hp2.frequency.value = 120
-    hp2.Q.value = 0.707
-    src2.connect(hp2).connect(g2).connect(master)
+      // Track 2 chain (highpass to avoid low-end clash)
+      const g2 = ctx.createBiquadFilter()
+      const hp2 = ctx.createBiquadFilter()
+      hp2.type = 'highpass'
+      hp2.frequency.value = 120
+      hp2.Q.value = 0.707
+      src2.connect(hp2).connect(g2).connect(master)
 
-    // Scheduling
-    // Track 1: fade in 0-2s to 1.0; duck when track2 comes in; fade out 20-30s
-    g1.gain.setValueAtTime(0.0, 0)
-    g1.gain.linearRampToValueAtTime(1.0, 2.0)
-    // Duck around track2 entry window 8-12s
-    g1.gain.linearRampToValueAtTime(0.6, 10.0)
-    // Recover a bit 12-20s
-    g1.gain.linearRampToValueAtTime(0.85, 20.0)
-    // Fade out
-    g1.gain.linearRampToValueAtTime(0.0, durationSec)
+      // Scheduling with improved crossfading
+      // Track 1: fade in 0-2s to 1.0; duck when track2 comes in; fade out 20-30s
+      g1.gain.setValueAtTime(0.0, 0)
+      g1.gain.linearRampToValueAtTime(1.0, 2.0)
+      // Duck around track2 entry window 8-12s
+      g1.gain.linearRampToValueAtTime(0.6, 10.0)
+      // Recover a bit 12-20s
+      g1.gain.linearRampToValueAtTime(0.85, 20.0)
+      // Fade out
+      g1.gain.linearRampToValueAtTime(0.0, durationSec)
 
-    // Track 2: start at 8s, fade in to 0.9 by 10s, ride, then slight lift to end
-    const t2Start = 8.0
-    g2.gain.setValueAtTime(0.0, t2Start)
-    g2.gain.linearRampToValueAtTime(0.9, t2Start + 2.0)
-    g2.gain.linearRampToValueAtTime(1.0, durationSec)
+      // Track 2: start at 8s, fade in to 0.9 by 10s, ride, then slight lift to end
+      const t2Start = 8.0
+      g2.gain.setValueAtTime(0.0, t2Start)
+      g2.gain.linearRampToValueAtTime(0.9, t2Start + 2.0)
+      g2.gain.linearRampToValueAtTime(1.0, durationSec)
 
-    // Start offsets to avoid cold intros
-    const off1 = Math.min(10, Math.max(0, buf1.duration * 0.1))
-    const off2 = Math.min(10, Math.max(0, buf2.duration * 0.2))
+      // Start offsets to avoid cold intros
+      const off1 = Math.min(10, Math.max(0, buf1.duration * 0.1))
+      const off2 = Math.min(10, Math.max(0, buf2.duration * 0.2))
 
-    const maxDur1 = Math.min(durationSec, (buf1.duration - off1) / rate1)
-    const maxDur2 = Math.min(Math.max(0, durationSec - t2Start), (buf2.duration - off2) / rate2)
+      const maxDur1 = Math.min(durationSec, (buf1.duration - off1) / rate1)
+      const maxDur2 = Math.min(Math.max(0, durationSec - t2Start), (buf2.duration - off2) / rate2)
 
-    src1.start(0, off1, Math.max(0, maxDur1))
-    src2.start(t2Start, off2, Math.max(0, maxDur2))
+      console.log('⏰ Scheduling - Track1 offset:', off1.toFixed(1), 's, Track2 offset:', off2.toFixed(1), 's')
+      console.log('⏰ Durations - Track1:', maxDur1.toFixed(1), 's, Track2:', maxDur2.toFixed(1), 's')
 
-    const renderedBuffer = await ctx.startRendering()
-    const wav = this.audioBufferToWav(renderedBuffer)
-    const blob = new Blob([wav], { type: 'audio/wav' })
-    const url = URL.createObjectURL(blob)
-    return url
+      src1.start(0, off1, Math.max(0, maxDur1))
+      src2.start(t2Start, off2, Math.max(0, maxDur2))
+
+      console.log('🎵 Rendering mix...')
+      const renderedBuffer = await ctx.startRendering()
+      console.log('✅ Mix rendered successfully, converting to WAV...')
+      
+      const wav = this.audioBufferToWav(renderedBuffer)
+      const blob = new Blob([wav], { type: 'audio/wav' })
+      const url = URL.createObjectURL(blob)
+      
+      console.log('🎉 Overlay mix generated successfully! URL:', url)
+      return url
+      
+    } catch (error) {
+      console.error('❌ Overlay mix generation failed:', error)
+      throw error
+    }
+  }
+
+  async generateSimpleCrossfade(track1, track2, durationSec = 30) {
+    try {
+      console.log('🔄 Generating simple crossfade mix...')
+      
+      const sr = 44100
+      const channels = 2
+      const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(channels, sr * durationSec, sr)
+
+      const master = ctx.createGain()
+      master.gain.value = 1.0
+      master.connect(ctx.destination)
+
+      // Decode audio
+      const [buf1, buf2] = await Promise.all([
+        this.fetchAndDecode(track1.previewUrl),
+        this.fetchAndDecode(track2.previewUrl)
+      ])
+
+      // Create sources
+      const src1 = ctx.createBufferSource()
+      src1.buffer = buf1
+      const src2 = ctx.createBufferSource()
+      src2.buffer = buf2
+
+      // Create gains for crossfading
+      const g1 = ctx.createGain()
+      const g2 = ctx.createGain()
+
+      src1.connect(g1).connect(master)
+      src2.connect(g2).connect(master)
+
+      // Crossfade at 15 seconds
+      const crossfadeTime = 15
+      const fadeDuration = 4 // 4 second crossfade
+
+      // Track 1: fade in, then fade out during crossfade
+      g1.gain.setValueAtTime(0, 0)
+      g1.gain.linearRampToValueAtTime(1, 2)
+      g1.gain.linearRampToValueAtTime(1, crossfadeTime - fadeDuration/2)
+      g1.gain.linearRampToValueAtTime(0, crossfadeTime + fadeDuration/2)
+
+      // Track 2: fade in during crossfade, then fade out
+      g2.gain.setValueAtTime(0, crossfadeTime - fadeDuration/2)
+      g2.gain.linearRampToValueAtTime(1, crossfadeTime + fadeDuration/2)
+      g2.gain.linearRampToValueAtTime(1, durationSec - 2)
+      g2.gain.linearRampToValueAtTime(0, durationSec)
+
+      // Start tracks
+      src1.start(0, 0, Math.min(durationSec, buf1.duration))
+      src2.start(0, 0, Math.min(durationSec, buf2.duration))
+
+      console.log('🔄 Rendering crossfade mix...')
+      const renderedBuffer = await ctx.startRendering()
+      
+      const wav = this.audioBufferToWav(renderedBuffer)
+      const blob = new Blob([wav], { type: 'audio/wav' })
+      const url = URL.createObjectURL(blob)
+      
+      console.log('✅ Simple crossfade mix generated!')
+      return url
+      
+    } catch (error) {
+      console.error('❌ Simple crossfade generation failed:', error)
+      throw error
+    }
   }
 
   playMix() {
