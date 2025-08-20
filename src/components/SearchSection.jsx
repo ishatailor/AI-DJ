@@ -87,6 +87,11 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
     // Decide which slot to fill next: 0 if empty, else 1, else replace 0
     const nextIndex = !selectedSongs[0] ? 0 : (!selectedSongs[1] ? 1 : 0)
     onSongSelect(nextIndex, track)
+    
+    // If this is a Spotify Premium track, log it for debugging
+    if (track.hasPremiumStream) {
+      console.log('🎵 Premium track selected:', track.name, 'by', track.artist)
+    }
   }
 
   const handleSearch = async (query) => {

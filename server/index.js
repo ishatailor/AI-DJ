@@ -552,8 +552,8 @@ app.get('/api/library', async (req, res) => {
 })
 
 // --- Spotify Premium User Authentication ---
-// Use environment variable or fallback to a working domain
-const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI || 'https://spotify-dj-mixer-demo.vercel.app/callback'
+// Use localhost for development - you can change this in your Spotify app settings
+const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI || 'http://localhost:3000'
 const SPOTIFY_SCOPES = [
   'user-read-private',
   'user-read-email',
@@ -563,7 +563,9 @@ const SPOTIFY_SCOPES = [
   'streaming',
   'user-read-recently-played',
   'user-read-playback-position',
-  'user-top-read'
+  'user-top-read',
+  'playlist-read-private',
+  'playlist-read-collaborative'
 ].join(' ')
 
 // Store user tokens (in production, use a proper database)
@@ -580,6 +582,7 @@ app.get('/api/spotify/auth', (req, res) => {
     state: state
   })}`
   
+  console.log('🔐 Spotify auth URL generated:', authUrl)
   res.json({ authUrl, state })
 })
 
@@ -591,6 +594,8 @@ app.get('/api/spotify/callback', async (req, res) => {
   }
   
   try {
+    console.log('🔄 Processing Spotify callback with code:', code.substring(0, 10) + '...')
+    
     // Exchange code for access token
     const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
@@ -606,11 +611,16 @@ app.get('/api/spotify/callback', async (req, res) => {
     })
     
     if (!tokenResponse.ok) {
-      throw new Error(`Token exchange failed: ${tokenResponse.status}`)
+      const errorText = await tokenResponse.text()
+      console.error('❌ Token exchange failed:', tokenResponse.status, errorText)
+      throw new Error(`Token exchange failed: ${tokenResponse.status} - ${errorText}`)
     }
     
     const tokenData = await tokenResponse.json()
+    console.log('✅ Token exchange successful, getting user ID...')
+    
     const userId = await getSpotifyUserId(tokenData.access_token)
+    console.log('✅ User ID obtained:', userId)
     
     // Store user tokens
     userTokens.set(userId, {
@@ -619,11 +629,13 @@ app.get('/api/spotify/callback', async (req, res) => {
       expires_at: Date.now() + (tokenData.expires_in * 1000)
     })
     
+    console.log('✅ User tokens stored, redirecting to frontend...')
+    
     // Redirect back to frontend with success
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}?auth-success=true&userId=${userId}`)
     
   } catch (error) {
-    console.error('Spotify callback error:', error)
+    console.error('❌ Spotify callback error:', error)
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}?auth-error=${encodeURIComponent(error.message)}`)
   }
 })
@@ -636,18 +648,24 @@ app.get('/api/spotify/user-tracks', async (req, res) => {
   }
   
   try {
+    console.log('🎵 Fetching user tracks for userId:', userId)
+    
     const userToken = userTokens.get(userId)
     if (Date.now() > userToken.expires_at) {
+      console.log('🔄 Token expired, refreshing...')
       // Token expired, refresh it
       const newToken = await refreshUserToken(userId, userToken.refresh_token)
       userTokens.set(userId, newToken)
     }
     
+    console.log('✅ Token valid, fetching user tracks...')
     const tracks = await fetchUserTracks(userTokens.get(userId).access_token)
+    console.log(`🎵 Successfully fetched ${tracks.length} user tracks`)
+    
     res.json({ tracks, count: tracks.length })
     
   } catch (error) {
-    console.error('Error fetching user tracks:', error)
+    console.error('❌ Error fetching user tracks:', error)
     res.status(500).json({ error: 'Failed to fetch user tracks' })
   }
 })
@@ -674,6 +692,60 @@ app.get('/api/spotify/stream/:trackId', async (req, res) => {
   } catch (error) {
     console.error('Error getting stream URL:', error)
     res.status(500).json({ error: 'Failed to get stream URL' })
+  }
+})
+
+// Generate mix from user's Spotify Premium tracks
+app.post('/api/spotify/generate-mix', async (req, res) => {
+  const { userId, track1Id, track2Id } = req.body
+  
+  if (!userId || !userTokens.has(userId)) {
+    return res.status(401).json({ error: 'User not authenticated' })
+  }
+  
+  if (!track1Id || !track2Id) {
+    return res.status(400).json({ error: 'Two track IDs are required' })
+  }
+  
+  try {
+    console.log('🎵 Generating mix for user:', userId, 'with tracks:', track1Id, track2Id)
+    
+    const userToken = userTokens.get(userId)
+    if (Date.now() > userToken.expires_at) {
+      const newToken = await refreshUserToken(userId, userToken.refresh_token)
+      userTokens.set(userId, newToken)
+    }
+    
+    // Get track details
+    const [track1, track2] = await Promise.all([
+      getTrackDetails(track1Id, userTokens.get(userId).access_token),
+      getTrackDetails(track2Id, userTokens.get(userId).access_token)
+    ])
+    
+    // Create a mock mix (in real app, this would generate actual audio)
+    const mixId = `premium_mix_${Date.now()}`
+    const mix = {
+      id: mixId,
+      name: `${track1.name} + ${track2.name}`,
+      tracks: [track1, track2],
+      generatedAt: new Date().toISOString(),
+      status: 'ready',
+      // Mock audio URL - in real app, this would be generated audio
+      audioUrl: `/api/mixes/${mixId}/audio`,
+      duration: 30,
+      compatibility: {
+        score: Math.floor(Math.random() * 40) + 60,
+        bpmScore: Math.floor(Math.random() * 30) + 70,
+        keyScore: Math.floor(Math.random() * 30) + 70
+      }
+    }
+    
+    console.log('✅ Premium mix generated:', mix.name)
+    res.json(mix)
+    
+  } catch (error) {
+    console.error('❌ Error generating premium mix:', error)
+    res.status(500).json({ error: 'Failed to generate mix' })
   }
 })
 
@@ -721,37 +793,58 @@ async function fetchUserTracks(accessToken) {
   let offset = 0
   const limit = 50
   
-  while (true) {
-    const response = await fetch(`https://api.spotify.com/v1/me/tracks?limit=${limit}&offset=${offset}`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    })
+  try {
+    console.log('🔍 Fetching user tracks from Spotify...')
     
-    if (!response.ok) {
-      throw new Error('Failed to fetch user tracks')
+    while (true) {
+      const response = await fetch(`https://api.spotify.com/v1/me/tracks?limit=${limit}&offset=${offset}`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Failed to fetch user tracks:', response.status, errorText)
+        throw new Error(`Failed to fetch user tracks: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      console.log(`📊 Fetched ${data.items.length} tracks (offset: ${offset})`)
+      
+      const userTracks = data.items.map(item => ({
+        id: item.track.id,
+        name: item.track.name,
+        artist: item.track.artists.map(a => a.name).join(', '),
+        album: item.track.album.name,
+        albumArt: item.track.album.images?.[0]?.url || 'https://via.placeholder.com/300x300/1db954/ffffff?text=No+Image',
+        duration: Math.round((item.track.duration_ms || 0) / 1000),
+        uri: item.track.uri,
+        externalUrl: item.track.external_urls?.spotify,
+        // Premium tracks have full streaming access
+        hasPremiumStream: true,
+        previewUrl: item.track.preview_url, // Fallback to preview if available
+        // Add mock audio features for mixing (in real app, fetch these from Spotify)
+        bpm: Math.floor(Math.random() * 60) + 80, // Random BPM for demo
+        key: ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'F', 'Bb', 'Eb', 'Ab'][Math.floor(Math.random() * 12)],
+        energy: Math.random() * 0.5 + 0.5,
+        danceability: Math.random() * 0.5 + 0.5
+      }))
+      
+      tracks.push(...userTracks)
+      
+      if (data.items.length < limit) break
+      offset += limit
+      
+      // Limit to first 100 tracks to avoid timeouts
+      if (offset >= 100) break
     }
     
-    const data = await response.json()
-    const userTracks = data.items.map(item => ({
-      id: item.track.id,
-      name: item.track.name,
-      artist: item.track.artists.map(a => a.name).join(', '),
-      album: item.track.album.name,
-      albumArt: item.track.album.images?.[0]?.url || 'https://via.placeholder.com/300x300/1db954/ffffff?text=No+Image',
-      duration: Math.round((item.track.duration_ms || 0) / 1000),
-      uri: item.track.uri,
-      externalUrl: item.track.external_urls?.spotify,
-      // Premium tracks have full streaming access
-      hasPremiumStream: true,
-      previewUrl: item.track.preview_url // Fallback to preview if available
-    }))
+    console.log(`✅ Successfully fetched ${tracks.length} user tracks`)
+    return tracks
     
-    tracks.push(...userTracks)
-    
-    if (data.items.length < limit) break
-    offset += limit
+  } catch (error) {
+    console.error('❌ Error in fetchUserTracks:', error)
+    throw error
   }
-  
-  return tracks
 }
 
 async function getTrackStreamUrl(trackId, accessToken) {
@@ -767,17 +860,42 @@ async function getTrackStreamUrl(trackId, accessToken) {
     throw new Error('Failed to get track info')
   }
   
-  const trackData = await response.json()
-  
-  return {
-    trackUri: trackData.uri,
-    trackId: trackData.id,
-    name: trackData.name,
-    artist: trackData.artists.map(a => a.name).join(', '),
-    album: trackData.album.name,
-    duration: Math.round((trackData.duration_ms || 0) / 1000),
-    // Premium users can stream the full track
-    isPremium: true
+  return await getTrackDetails(trackId, accessToken)
+}
+
+async function getTrackDetails(trackId, accessToken) {
+  try {
+    const response = await fetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Failed to get track info: ${response.status}`)
+    }
+    
+    const trackData = await response.json()
+    
+    return {
+      id: trackData.id,
+      name: trackData.name,
+      artist: trackData.artists.map(a => a.name).join(', '),
+      album: trackData.album.name,
+      albumArt: trackData.album.images?.[0]?.url || 'https://via.placeholder.com/300x300/1db954/ffffff?text=No+Image',
+      duration: Math.round((trackData.duration_ms || 0) / 1000),
+      uri: trackData.uri,
+      externalUrl: trackData.external_urls?.spotify,
+      // Premium tracks have full streaming access
+      hasPremiumStream: true,
+      previewUrl: trackData.preview_url, // Fallback to preview if available
+      // Mock audio features for mixing (in real app, fetch these from Spotify)
+      bpm: Math.floor(Math.random() * 60) + 80,
+      key: ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'F', 'Bb', 'Eb', 'Ab'][Math.floor(Math.random() * 12)],
+      energy: Math.random() * 0.5 + 0.5,
+      danceability: Math.random() * 0.5 + 0.5
+    }
+  } catch (error) {
+    console.error('❌ Error getting track details:', error)
+    throw error
   }
 }
 
