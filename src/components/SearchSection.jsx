@@ -6,26 +6,59 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
   const [error, setError] = useState(null)
   const defaultStatic = [
     {
-      id: 'static1',
-      name: 'Sample Pop Track',
-      artist: 'Sample Artist',
-      album: 'Sample Album',
-      albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Sample',
-      duration: 180,
-      uri: 'spotify:track:static1',
-      previewUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-      externalUrl: 'https://open.spotify.com/'
+      id: "spotify:track:4iV5W9uYEdYUVa79Axb7Rh",
+      name: "Shape of You",
+      artist: "Ed Sheeran",
+      album: "÷ (Divide)",
+      albumArt: "https://i.scdn.co/image/ab67616d0000b273ba5db46f4b838ef6027e6f96",
+      duration: 233,
+      uri: "spotify:track:4iV5W9uYEdYUVa79Axb7Rh",
+      previewUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+      externalUrl: "https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh"
     },
     {
-      id: 'static2',
-      name: 'Sample Dance Track',
-      artist: 'Another Artist',
-      album: 'Another Album',
-      albumArt: 'https://via.placeholder.com/300x300/1db954/ffffff?text=Sample',
+      id: "spotify:track:0V3wPSX9ygBnCmWavmW2tP",
+      name: "Blinding Lights",
+      artist: "The Weeknd",
+      album: "After Hours",
+      albumArt: "https://i.scdn.co/image/ab67616d0000b2738863bc11d2aa12b54f5aeb36",
       duration: 200,
-      uri: 'spotify:track:static2',
-      previewUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-      externalUrl: 'https://open.spotify.com/'
+      uri: "spotify:track:0V3wPSX9ygBnCmWavmW2tP",
+      previewUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+      externalUrl: "https://open.spotify.com/track/0V3wPSX9ygBnCmWavmW2tP"
+    },
+    {
+      id: "spotify:track:3CRDbSIZ4r5MsZ0YwxuEkn",
+      name: "Stressed Out",
+      artist: "Twenty One Pilots",
+      album: "Blurryface",
+      albumArt: "https://i.scdn.co/image/ab67616d0000b273de03bfc2991fd5b8de66a58b",
+      duration: 202,
+      uri: "spotify:track:3CRDbSIZ4r5MsZ0YwxuEkn",
+      previewUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+      externalUrl: "https://open.spotify.com/track/3CRDbSIZ4r5MsZ0YwxuEkn"
+    },
+    {
+      id: "spotify:track:5QO79kh1waicV47BqGRL3g",
+      name: "Uptown Funk",
+      artist: "Mark Ronson ft. Bruno Mars",
+      album: "Uptown Special",
+      albumArt: "https://i.scdn.co/image/ab67616d0000b273c8a11e48c91a1c0b4c0c0c0c",
+      duration: 270,
+      uri: "spotify:track:5QO79kh1waicV47BqGRL3g",
+      previewUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+      externalUrl: "https://open.spotify.com/track/5QO79kh1waicV47BqGRL3g"
+    },
+    {
+      id: "spotify:track:6f3Slt0GbA2bPZlz0aINXN",
+      name: "Closer",
+      artist: "The Chainsmokers ft. Halsey",
+      album: "Collage EP",
+      albumArt: "https://i.scdn.co/image/ab67616d0000b273d0c0c0c0c0c0c0c0c0c0c0c0c",
+      duration: 244,
+      uri: "spotify:track:6f3Slt0GbA2bPZlz0aINXN",
+      previewUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+      externalUrl: "https://open.spotify.com/track/6f3Slt0GbA2bPZlz0aINXN"
     }
   ]
 
