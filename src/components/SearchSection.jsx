@@ -6,59 +6,59 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
   const [error, setError] = useState(null)
   const defaultStatic = [
     {
-      id: "spotify:track:4iV5W9uYEdYUVa79Axb7Rh",
-      name: "Shape of You",
-      artist: "Ed Sheeran",
-      album: "÷ (Divide)",
-      albumArt: "https://i.scdn.co/image/ab67616d0000b273ba5db46f4b838ef6027e6f96",
-      duration: 233,
-      uri: "spotify:track:4iV5W9uYEdYUVa79Axb7Rh",
+      id: "track1",
+      name: "Electronic Beat",
+      artist: "Sample Artist",
+      album: "Demo Album",
+      albumArt: "https://via.placeholder.com/300x300/1db954/ffffff?text=Electronic",
+      duration: 180,
+      uri: "spotify:track:track1",
       previewUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-      externalUrl: "https://open.spotify.com/track/4iV5W9uYEdYUVa79Axb7Rh"
+      externalUrl: "https://open.spotify.com/"
     },
     {
-      id: "spotify:track:0V3wPSX9ygBnCmWavmW2tP",
-      name: "Blinding Lights",
-      artist: "The Weeknd",
-      album: "After Hours",
-      albumArt: "https://i.scdn.co/image/ab67616d0000b2738863bc11d2aa12b54f5aeb36",
+      id: "track2",
+      name: "Pop Melody",
+      artist: "Demo Artist",
+      album: "Test Album",
+      albumArt: "https://via.placeholder.com/300x300/1db954/ffffff?text=Pop",
       duration: 200,
-      uri: "spotify:track:0V3wPSX9ygBnCmWavmW2tP",
+      uri: "spotify:track:track2",
       previewUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-      externalUrl: "https://open.spotify.com/track/0V3wPSX9ygBnCmWavmW2tP"
+      externalUrl: "https://open.spotify.com/"
     },
     {
-      id: "spotify:track:3CRDbSIZ4r5MsZ0YwxuEkn",
-      name: "Stressed Out",
-      artist: "Twenty One Pilots",
-      album: "Blurryface",
-      albumArt: "https://i.scdn.co/image/ab67616d0000b273de03bfc2991fd5b8de66a58b",
-      duration: 202,
-      uri: "spotify:track:3CRDbSIZ4r5MsZ0YwxuEkn",
+      id: "track3",
+      name: "Rock Riff",
+      artist: "Test Band",
+      album: "Demo Collection",
+      albumArt: "https://via.placeholder.com/300x300/1db954/ffffff?text=Rock",
+      duration: 220,
+      uri: "spotify:track:track3",
       previewUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-      externalUrl: "https://open.spotify.com/track/3CRDbSIZ4r5MsZ0YwxuEkn"
+      externalUrl: "https://open.spotify.com/"
     },
     {
-      id: "spotify:track:5QO79kh1waicV47BqGRL3g",
-      name: "Uptown Funk",
-      artist: "Mark Ronson ft. Bruno Mars",
-      album: "Uptown Special",
-      albumArt: "https://i.scdn.co/image/ab67616d0000b273c8a11e48c91a1c0b4c0c0c0c",
-      duration: 270,
-      uri: "spotify:track:5QO79kh1waicV47BqGRL3g",
+      id: "track4",
+      name: "Jazz Groove",
+      artist: "Jazz Ensemble",
+      album: "Smooth Jazz",
+      albumArt: "https://via.placeholder.com/300x300/1db954/ffffff?text=Jazz",
+      duration: 240,
+      uri: "spotify:track:track4",
       previewUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-      externalUrl: "https://open.spotify.com/track/5QO79kh1waicV47BqGRL3g"
+      externalUrl: "https://open.spotify.com/"
     },
     {
-      id: "spotify:track:6f3Slt0GbA2bPZlz0aINXN",
-      name: "Closer",
-      artist: "The Chainsmokers ft. Halsey",
-      album: "Collage EP",
-      albumArt: "https://i.scdn.co/image/ab67616d0000b273d0c0c0c0c0c0c0c0c0c0c0c0c",
-      duration: 244,
-      uri: "spotify:track:6f3Slt0GbA2bPZlz0aINXN",
+      id: "track5",
+      name: "Ambient Drone",
+      artist: "Ambient Project",
+      album: "Atmospheric",
+      albumArt: "https://via.placeholder.com/300x300/1db954/ffffff?text=Ambient",
+      duration: 300,
+      uri: "spotify:track:track5",
       previewUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
-      externalUrl: "https://open.spotify.com/track/6f3Slt0GbA2bPZlz0aINXN"
+      externalUrl: "https://open.spotify.com/"
     }
   ]
 
