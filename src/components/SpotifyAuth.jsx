@@ -55,7 +55,7 @@ const SpotifyAuth = ({ onAuthSuccess, onAuthError }) => {
     const authError = urlParams.get('auth-error')
     const callbackUserId = urlParams.get('userId')
     
-    if (callbackUserId) {
+    if (callbackUserId && authSuccess === 'true') {
       setUserId(callbackUserId)
       setIsAuthenticated(true)
       localStorage.setItem('spotify_user_id', callbackUserId)

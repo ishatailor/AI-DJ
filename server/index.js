@@ -552,7 +552,7 @@ app.get('/api/library', async (req, res) => {
 })
 
 // --- Spotify Premium User Authentication ---
-const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI || 'http://localhost:3000/callback'
+const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI || 'http://localhost:4000/callback'
 const SPOTIFY_SCOPES = [
   'user-read-private',
   'user-read-email',
@@ -619,11 +619,11 @@ app.get('/api/spotify/callback', async (req, res) => {
     })
     
     // Redirect back to frontend with success
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth-success?userId=${userId}`)
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}?auth-success=true&userId=${userId}`)
     
   } catch (error) {
     console.error('Spotify callback error:', error)
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth-error?error=${encodeURIComponent(error.message)}`)
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}?auth-error=${encodeURIComponent(error.message)}`)
   }
 })
 
