@@ -97,14 +97,23 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
       if (response.ok) {
         const data = await response.json()
         if (data.tracks && data.tracks.length > 0) {
-          setLibrary(data.tracks)
-          console.log(`🔍 Found ${data.tracks.length} real Spotify tracks for "${query}"`)
+          // Only show tracks with preview URLs
+          const tracksWithPreviews = data.tracks.filter(track => track.previewUrl && track.previewUrl.trim() !== '')
+          setLibrary(tracksWithPreviews)
+          console.log(`🔍 Found ${tracksWithPreviews.length} tracks with previews for "${query}" (total: ${data.totalFound})`)
+          
+          if (tracksWithPreviews.length === 0) {
+            setError(`Found ${data.totalFound} tracks but none have preview URLs available. Try searching for different artists, songs, or genres. Popular tracks often don't have previews due to licensing.`)
+          }
         } else {
           setLibrary([])
           setError(`No tracks found for "${query}"`)
         }
       } else if (response.status === 429) {
         setError('Spotify API rate limited. Please wait a moment and try again.')
+      } else if (response.status === 500) {
+        const errorData = await response.json()
+        setError(`Spotify API error: ${errorData.error || 'Service unavailable'}`)
       } else {
         setError('Search failed. Please try again.')
       }
@@ -184,6 +193,43 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
             </button>
           ))}
         </div>
+        
+        {/* Alternative search suggestions that might have previews */}
+        <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {['indie', 'electronic', 'acoustic', 'cover', 'remix', 'live'].map(term => (
+            <button
+              key={term}
+              onClick={() => handleSearch(term)}
+              disabled={searching}
+              style={{
+                padding: '0.4rem 0.8rem',
+                borderRadius: '16px',
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'rgba(255,255,255,0.05)',
+                color: 'white',
+                cursor: searching ? 'not-allowed' : 'pointer',
+                fontSize: '0.8rem',
+                opacity: 0.8
+              }}
+            >
+              {term}
+            </button>
+          ))}
+        </div>
+        
+        {/* Info about preview availability */}
+        <div style={{ 
+          marginTop: '1rem', 
+          padding: '0.75rem', 
+          background: 'rgba(29, 185, 84, 0.1)', 
+          border: '1px solid rgba(29, 185, 84, 0.3)', 
+          borderRadius: '8px',
+          fontSize: '0.9rem',
+          opacity: 0.9
+        }}>
+          <strong>ℹ️ Note:</strong> Only tracks with available Spotify preview URLs will be displayed. 
+          Many popular tracks may not have previews available due to licensing restrictions.
+        </div>
       </div>
 
       {loading && (
@@ -197,7 +243,7 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
       )}
       {!loading && !searching && !error && library.length === 0 && (
         <div style={{ textAlign: 'center', marginTop: '1rem', opacity: 0.7 }}>
-          Search for songs above to find tracks to mix
+          Search for songs above to find tracks with preview URLs
         </div>
       )}
 
@@ -227,6 +273,16 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
             <div className="search-result-info">
               <h4>{track.name}</h4>
               <p>{track.artist} • {track.album}</p>
+              {track.previewUrl && (
+                <span style={{ 
+                  fontSize: '0.8rem', 
+                  color: '#1db954', 
+                  fontWeight: 'bold',
+                  marginTop: '0.25rem'
+                }}>
+                  🎵 Preview Available
+                </span>
+              )}
             </div>
           </button>
         ))}

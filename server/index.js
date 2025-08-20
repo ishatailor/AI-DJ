@@ -427,8 +427,18 @@ app.get('/api/spotify/search', async (req, res) => {
     
     console.log(`🔍 Starting Spotify search for: "${q}"`)
     
-    const token = await getSpotifyToken()
-    console.log(`✅ Got Spotify token: ${token.substring(0, 20)}...`)
+    // Try to get Spotify token
+    let token
+    try {
+      token = await getSpotifyToken()
+      console.log(`✅ Got Spotify token: ${token.substring(0, 20)}...`)
+    } catch (tokenError) {
+      console.error('❌ Spotify token failed:', tokenError.message)
+      return res.status(500).json({ 
+        error: 'Spotify API not available. Please try again later.',
+        details: 'Unable to authenticate with Spotify'
+      })
+    }
     
     const results = await fetchSearchPreviewables(token, { 
       q: q.trim(), 
@@ -437,10 +447,16 @@ app.get('/api/spotify/search', async (req, res) => {
     })
     
     console.log(`🔍 Spotify search for "${q}" returned ${results.length} tracks with previews`)
+    
+    // Filter to only show tracks with preview URLs
+    const tracksWithPreviews = results.filter(track => track.previewUrl && track.previewUrl.trim() !== '')
+    
     res.json({
       query: q,
-      tracks: results,
-      count: results.length
+      tracks: tracksWithPreviews,
+      count: tracksWithPreviews.length,
+      totalFound: results.length,
+      withPreviews: tracksWithPreviews.length
     })
     
   } catch (error) {
@@ -475,9 +491,13 @@ app.get('/api/library', async (req, res) => {
           try {
             console.log(`🔍 Searching for "${q}" in ${market} (offset: ${offset})`)
             const results = await fetchSearchPreviewables(token, { q, limit: 20, market, offset })
-            console.log(`✅ Found ${results.length} tracks with previews for "${q}"`)
+            console.log(`✅ Found ${results.length} tracks for "${q}"`)
             
-            for (const t of results) {
+            // Filter to only include tracks with preview URLs
+            const tracksWithPreviews = results.filter(track => track.previewUrl && track.previewUrl.trim() !== '')
+            console.log(`🎵 ${tracksWithPreviews.length} tracks have preview URLs`)
+            
+            for (const t of tracksWithPreviews) {
               if (seen.has(t.id)) continue
               seen.add(t.id)
               library.push(t)
