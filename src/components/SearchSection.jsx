@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import SpotifyAuth from './SpotifyAuth'
 
 const LibrarySection = ({ selectedSongs, onSongSelect }) => {
   const [library, setLibrary] = useState([])
@@ -6,6 +7,8 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
   const [error, setError] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [searching, setSearching] = useState(false)
+  const [spotifyUserId, setSpotifyUserId] = useState(null)
+  const [showPremiumLibrary, setShowPremiumLibrary] = useState(false)
   const defaultStatic = [
     {
       id: "track1",
@@ -93,6 +96,13 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
       setSearching(true)
       setError(null)
       
+      if (showPremiumLibrary && spotifyUserId) {
+        // Search through user's premium library
+        await searchPremiumLibrary(query)
+        return
+      }
+      
+      // Fallback to public Spotify search
       const response = await fetch(`/api/spotify/search?q=${encodeURIComponent(query.trim())}&limit=20`)
       if (response.ok) {
         const data = await response.json()
@@ -130,11 +140,87 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
     handleSearch(searchQuery)
   }
 
+  const handleAuthSuccess = (userId) => {
+    setSpotifyUserId(userId)
+    if (userId) {
+      loadPremiumLibrary(userId)
+    }
+  }
+
+  const handleAuthError = (error) => {
+    console.error('Spotify auth error:', error)
+    setError('Spotify authentication failed')
+  }
+
+  const loadPremiumLibrary = async (userId) => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const response = await fetch(`/api/spotify/user-tracks?userId=${userId}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.tracks && data.tracks.length > 0) {
+          setLibrary(data.tracks)
+          setShowPremiumLibrary(true)
+          console.log(`🎵 Loaded ${data.tracks.length} tracks from your Spotify Premium library`)
+        } else {
+          setError('No tracks found in your library')
+        }
+      } else {
+        setError('Failed to load your music library')
+      }
+    } catch (error) {
+      console.error('Failed to load premium library:', error)
+      setError('Failed to load your music library')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const searchPremiumLibrary = async (query) => {
+    if (!spotifyUserId || !query.trim() || query.trim().length < 2) return
+    
+    try {
+      setSearching(true)
+      setError(null)
+      
+      // Search through user's saved tracks
+      const userTracks = library.filter(track => 
+        track.name.toLowerCase().includes(query.toLowerCase()) ||
+        track.artist.toLowerCase().includes(query.toLowerCase()) ||
+        track.album.toLowerCase().includes(query.toLowerCase())
+      )
+      
+      setLibrary(userTracks)
+      console.log(`🔍 Found ${userTracks.length} tracks matching "${query}" in your library`)
+      
+    } catch (error) {
+      console.error('Premium search error:', error)
+      setError('Search failed. Please try again.')
+    } finally {
+      setSearching(false)
+    }
+  }
+
   return (
     <div className="search-section">
+      {/* Spotify Premium Authentication */}
+      <SpotifyAuth 
+        onAuthSuccess={handleAuthSuccess}
+        onAuthError={handleAuthError}
+      />
+      
       <div style={{ marginBottom: '1rem' }}>
-        <h3>Search Real Spotify Tracks</h3>
-        <p style={{ opacity: 0.7 }}>Search for real songs to create actual DJ mixes</p>
+        <h3>
+          {showPremiumLibrary ? '🎵 Your Spotify Premium Library' : 'Search Real Spotify Tracks'}
+        </h3>
+        <p style={{ opacity: 0.7 }}>
+          {showPremiumLibrary 
+            ? 'Create DJ mixes from your personal music library' 
+            : 'Search for real songs to create actual DJ mixes'
+          }
+        </p>
         
         {/* Real-time Spotify search */}
         <form onSubmit={handleSearchSubmit} style={{ marginTop: '1rem' }}>
@@ -143,7 +229,7 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search for songs, artists, or albums..."
+              placeholder={showPremiumLibrary ? "Search your music library..." : "Search for songs, artists, or albums..."}
               style={{
                 flex: 1,
                 padding: '0.75rem',
@@ -167,7 +253,7 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
                 opacity: searching ? 0.6 : 1
               }}
             >
-              {searching ? 'Searching...' : 'Search'}
+              {searching ? 'Searching...' : (showPremiumLibrary ? 'Search Library' : 'Search')}
             </button>
           </div>
         </form>
@@ -273,7 +359,17 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
             <div className="search-result-info">
               <h4>{track.name}</h4>
               <p>{track.artist} • {track.album}</p>
-              {track.previewUrl && (
+              {track.hasPremiumStream && (
+                <span style={{ 
+                  fontSize: '0.8rem', 
+                  color: '#1db954', 
+                  fontWeight: 'bold',
+                  marginTop: '0.25rem'
+                }}>
+                  🎵 Premium Stream
+                </span>
+              )}
+              {track.previewUrl && !track.hasPremiumStream && (
                 <span style={{ 
                   fontSize: '0.8rem', 
                   color: '#1db954', 

@@ -551,6 +551,235 @@ app.get('/api/library', async (req, res) => {
   }
 })
 
+// --- Spotify Premium User Authentication ---
+const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI || 'http://localhost:3000/callback'
+const SPOTIFY_SCOPES = [
+  'user-read-private',
+  'user-read-email',
+  'user-read-playback-state',
+  'user-modify-playback-state',
+  'user-read-currently-playing',
+  'streaming',
+  'user-read-recently-played',
+  'user-read-playback-position',
+  'user-top-read'
+].join(' ')
+
+// Store user tokens (in production, use a proper database)
+const userTokens = new Map()
+
+// Spotify Premium user authentication endpoints
+app.get('/api/spotify/auth', (req, res) => {
+  const state = Math.random().toString(36).substring(7)
+  const authUrl = `https://accounts.spotify.com/authorize?${new URLSearchParams({
+    response_type: 'code',
+    client_id: SPOTIFY_CLIENT_ID,
+    scope: SPOTIFY_SCOPES,
+    redirect_uri: SPOTIFY_REDIRECT_URI,
+    state: state
+  })}`
+  
+  res.json({ authUrl, state })
+})
+
+app.get('/api/spotify/callback', async (req, res) => {
+  const { code, state } = req.query
+  
+  if (!code) {
+    return res.status(400).json({ error: 'Authorization code required' })
+  }
+  
+  try {
+    // Exchange code for access token
+    const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: SPOTIFY_REDIRECT_URI
+      })
+    })
+    
+    if (!tokenResponse.ok) {
+      throw new Error(`Token exchange failed: ${tokenResponse.status}`)
+    }
+    
+    const tokenData = await tokenResponse.json()
+    const userId = await getSpotifyUserId(tokenData.access_token)
+    
+    // Store user tokens
+    userTokens.set(userId, {
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token,
+      expires_at: Date.now() + (tokenData.expires_in * 1000)
+    })
+    
+    // Redirect back to frontend with success
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth-success?userId=${userId}`)
+    
+  } catch (error) {
+    console.error('Spotify callback error:', error)
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth-error?error=${encodeURIComponent(error.message)}`)
+  }
+})
+
+app.get('/api/spotify/user-tracks', async (req, res) => {
+  const { userId } = req.query
+  
+  if (!userId || !userTokens.has(userId)) {
+    return res.status(401).json({ error: 'User not authenticated' })
+  }
+  
+  try {
+    const userToken = userTokens.get(userId)
+    if (Date.now() > userToken.expires_at) {
+      // Token expired, refresh it
+      const newToken = await refreshUserToken(userId, userToken.refresh_token)
+      userTokens.set(userId, newToken)
+    }
+    
+    const tracks = await fetchUserTracks(userTokens.get(userId).access_token)
+    res.json({ tracks, count: tracks.length })
+    
+  } catch (error) {
+    console.error('Error fetching user tracks:', error)
+    res.status(500).json({ error: 'Failed to fetch user tracks' })
+  }
+})
+
+app.get('/api/spotify/stream/:trackId', async (req, res) => {
+  const { trackId } = req.params
+  const { userId } = req.query
+  
+  if (!userId || !userTokens.has(userId)) {
+    return res.status(401).json({ error: 'User not authenticated' })
+  }
+  
+  try {
+    const userToken = userTokens.get(userId)
+    if (Date.now() > userToken.expires_at) {
+      const newToken = await refreshUserToken(userId, userToken.refresh_token)
+      userTokens.set(userId, newToken)
+    }
+    
+    // Get track streaming URL (this requires Premium)
+    const streamUrl = await getTrackStreamUrl(trackId, userTokens.get(userId).access_token)
+    res.json({ streamUrl, trackId })
+    
+  } catch (error) {
+    console.error('Error getting stream URL:', error)
+    res.status(500).json({ error: 'Failed to get stream URL' })
+  }
+})
+
+// Helper functions for Premium authentication
+async function getSpotifyUserId(accessToken) {
+  const response = await fetch('https://api.spotify.com/v1/me', {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  })
+  
+  if (!response.ok) {
+    throw new Error('Failed to get user profile')
+  }
+  
+  const userData = await response.json()
+  return userData.id
+}
+
+async function refreshUserToken(userId, refreshToken) {
+  const response = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': 'Basic ' + Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken
+    })
+  })
+  
+  if (!response.ok) {
+    throw new Error('Failed to refresh token')
+  }
+  
+  const tokenData = await response.json()
+  return {
+    access_token: tokenData.access_token,
+    refresh_token: refreshToken,
+    expires_at: Date.now() + (tokenData.expires_in * 1000)
+  }
+}
+
+async function fetchUserTracks(accessToken) {
+  const tracks = []
+  let offset = 0
+  const limit = 50
+  
+  while (true) {
+    const response = await fetch(`https://api.spotify.com/v1/me/tracks?limit=${limit}&offset=${offset}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    })
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch user tracks')
+    }
+    
+    const data = await response.json()
+    const userTracks = data.items.map(item => ({
+      id: item.track.id,
+      name: item.track.name,
+      artist: item.track.artists.map(a => a.name).join(', '),
+      album: item.track.album.name,
+      albumArt: item.track.album.images?.[0]?.url || 'https://via.placeholder.com/300x300/1db954/ffffff?text=No+Image',
+      duration: Math.round((item.track.duration_ms || 0) / 1000),
+      uri: item.track.uri,
+      externalUrl: item.track.external_urls?.spotify,
+      // Premium tracks have full streaming access
+      hasPremiumStream: true,
+      previewUrl: item.track.preview_url // Fallback to preview if available
+    }))
+    
+    tracks.push(...userTracks)
+    
+    if (data.items.length < limit) break
+    offset += limit
+  }
+  
+  return tracks
+}
+
+async function getTrackStreamUrl(trackId, accessToken) {
+  // For Premium users, we can get the actual track data
+  // Note: Spotify doesn't provide direct streaming URLs, but we can use the track URI
+  // and let the Spotify Web Playback SDK handle the actual streaming
+  
+  const response = await fetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  })
+  
+  if (!response.ok) {
+    throw new Error('Failed to get track info')
+  }
+  
+  const trackData = await response.json()
+  
+  return {
+    trackUri: trackData.uri,
+    trackId: trackData.id,
+    name: trackData.name,
+    artist: trackData.artists.map(a => a.name).join(', '),
+    album: trackData.album.name,
+    duration: Math.round((trackData.duration_ms || 0) / 1000),
+    // Premium users can stream the full track
+    isPremium: true
+  }
+}
+
 // Simple proxy to fetch remote audio with permissive CORS for decoding/mixing
 app.get('/api/proxy', async (req, res) => {
   try {
