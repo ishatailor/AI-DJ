@@ -552,7 +552,8 @@ app.get('/api/library', async (req, res) => {
 })
 
 // --- Spotify Premium User Authentication ---
-const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI || 'http://localhost:4000/callback'
+// Use environment variable or fallback to a working domain
+const SPOTIFY_REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI || 'https://spotify-dj-mixer-demo.vercel.app/callback'
 const SPOTIFY_SCOPES = [
   'user-read-private',
   'user-read-email',
