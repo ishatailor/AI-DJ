@@ -4,6 +4,8 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
   const [library, setLibrary] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searching, setSearching] = useState(false)
   const defaultStatic = [
     {
       id: "track1",
@@ -84,22 +86,118 @@ const LibrarySection = ({ selectedSongs, onSongSelect }) => {
     onSongSelect(nextIndex, track)
   }
 
+  const handleSearch = async (query) => {
+    if (!query.trim() || query.trim().length < 2) return
+    
+    try {
+      setSearching(true)
+      setError(null)
+      
+      const response = await fetch(`/api/spotify/search?q=${encodeURIComponent(query.trim())}&limit=20`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.tracks && data.tracks.length > 0) {
+          setLibrary(data.tracks)
+          console.log(`🔍 Found ${data.tracks.length} real Spotify tracks for "${query}"`)
+        } else {
+          setLibrary([])
+          setError(`No tracks found for "${query}"`)
+        }
+      } else if (response.status === 429) {
+        setError('Spotify API rate limited. Please wait a moment and try again.')
+      } else {
+        setError('Search failed. Please try again.')
+      }
+    } catch (error) {
+      console.error('Search error:', error)
+      setError('Search failed. Please try again.')
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault()
+    handleSearch(searchQuery)
+  }
+
   return (
     <div className="search-section">
       <div style={{ marginBottom: '1rem' }}>
-        <h3>Browse Previewable Tracks</h3>
-        <p style={{ opacity: 0.7 }}>Click to select two songs to mix</p>
+        <h3>Search Real Spotify Tracks</h3>
+        <p style={{ opacity: 0.7 }}>Search for real songs to create actual DJ mixes</p>
+        
+        {/* Real-time Spotify search */}
+        <form onSubmit={handleSearchSubmit} style={{ marginTop: '1rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search for songs, artists, or albums..."
+              style={{
+                flex: 1,
+                padding: '0.75rem',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'rgba(255,255,255,0.1)',
+                color: 'white',
+                fontSize: '1rem'
+              }}
+            />
+            <button
+              type="submit"
+              disabled={searching || !searchQuery.trim()}
+              style={{
+                padding: '0.75rem 1.5rem',
+                borderRadius: '8px',
+                border: 'none',
+                background: '#1db954',
+                color: 'white',
+                cursor: searching ? 'not-allowed' : 'pointer',
+                opacity: searching ? 0.6 : 1
+              }}
+            >
+              {searching ? 'Searching...' : 'Search'}
+            </button>
+          </div>
+        </form>
+        
+        {/* Quick search suggestions */}
+        <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {['Queen', 'Michael Jackson', 'Eagles', 'John Lennon', 'Led Zeppelin'].map(artist => (
+            <button
+              key={artist}
+              onClick={() => handleSearch(artist)}
+              disabled={searching}
+              style={{
+                padding: '0.5rem 1rem',
+                borderRadius: '20px',
+                border: '1px solid rgba(255,255,255,0.3)',
+                background: 'transparent',
+                color: 'white',
+                cursor: searching ? 'not-allowed' : 'pointer',
+                fontSize: '0.9rem'
+              }}
+            >
+              {artist}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading && (
-        <div style={{ textAlign: 'center', marginTop: '1rem' }}>Loading library…</div>
+        <div style={{ textAlign: 'center', marginTop: '1rem' }}>Loading initial library…</div>
+      )}
+      {searching && (
+        <div style={{ textAlign: 'center', marginTop: '1rem' }}>🔍 Searching Spotify for "{searchQuery}"...</div>
       )}
       {error && (
         <div style={{ textAlign: 'center', marginTop: '1rem', color: '#ff6b6b' }}>{error}</div>
       )}
-      {!loading && !error && library.length === 0 && (
+      {!loading && !searching && !error && library.length === 0 && (
         <div style={{ textAlign: 'center', marginTop: '1rem', opacity: 0.7 }}>
-          No previewable tracks found. Please try again in a moment.
+          Search for songs above to find tracks to mix
         </div>
       )}
 

@@ -314,19 +314,34 @@ const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || '8abeecc3dd25435ea2bd
 const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || 'd0886806678f4cc8b1eb298e871fffe8'
 
 async function getSpotifyToken() {
-  const resp = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': 'Basic ' + Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')
-    },
-    body: 'grant_type=client_credentials'
-  })
-  if (!resp.ok) {
-    throw new Error(`Spotify auth failed: ${resp.status}`)
+  try {
+    console.log('🔑 Getting Spotify token...')
+    console.log('Client ID:', SPOTIFY_CLIENT_ID.substring(0, 10) + '...')
+    
+    const resp = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')
+      },
+      body: 'grant_type=client_credentials'
+    })
+    
+    console.log('Spotify auth response status:', resp.status)
+    
+    if (!resp.ok) {
+      const errorText = await resp.text()
+      console.error('Spotify auth error response:', errorText)
+      throw new Error(`Spotify auth failed: ${resp.status} - ${errorText}`)
+    }
+    
+    const json = await resp.json()
+    console.log('✅ Spotify token obtained successfully')
+    return json.access_token
+  } catch (error) {
+    console.error('❌ Spotify token error:', error.message)
+    throw error
   }
-  const json = await resp.json()
-  return json.access_token
 }
 
 async function fetchRecommendations(token, { limit = 50, market = 'US', seedGenres, seedArtists } = {}) {
@@ -363,27 +378,83 @@ async function fetchRecommendations(token, { limit = 50, market = 'US', seedGenr
 }
 
 async function fetchSearchPreviewables(token, { q, limit = 50, market = 'US', offset = 0 } = {}) {
-  const params = new URLSearchParams({ q, type: 'track', limit: String(Math.min(limit, 50)), market, offset: String(offset) })
-  const resp = await fetch(`https://api.spotify.com/v1/search?${params}`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  })
-  if (!resp.ok) {
-    throw new Error(`Spotify search failed: ${resp.status}`)
+  try {
+    const params = new URLSearchParams({ q, type: 'track', limit: String(Math.min(limit, 50)), market, offset: String(offset) })
+    const resp = await fetch(`https://api.spotify.com/v1/search?${params}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    
+    if (!resp.ok) {
+      if (resp.status === 429) {
+        throw new Error('Rate limited - please wait before trying again')
+      }
+      throw new Error(`Spotify search failed: ${resp.status}`)
+    }
+    
+    const json = await resp.json()
+    const items = json?.tracks?.items || []
+    
+    console.log(`Found ${items.length} total tracks for query "${q}"`)
+    
+    // Return ALL tracks, not just ones with preview URLs
+    // We'll handle the mixing differently
+    return items.map(track => ({
+      id: track.id,
+      name: track.name,
+      artist: track.artists.map(a => a.name).join(', '),
+      album: track.album.name,
+      albumArt: track.album.images?.[0]?.url || 'https://via.placeholder.com/300x300/1db954/ffffff?text=No+Image',
+      duration: Math.round((track.duration_ms || 0) / 1000),
+      uri: track.uri,
+      previewUrl: track.preview_url || null, // May be null
+      externalUrl: track.external_urls?.spotify,
+      // Add audio features for better mixing
+      hasPreview: !!track.preview_url
+    }))
+  } catch (error) {
+    console.error('Search error:', error.message)
+    throw error
   }
-  const json = await resp.json()
-  const items = json?.tracks?.items || []
-  return items.filter(t => t?.preview_url).map(track => ({
-    id: track.id,
-    name: track.name,
-    artist: track.artists.map(a => a.name).join(', '),
-    album: track.album.name,
-    albumArt: track.album.images?.[0]?.url || 'https://via.placeholder.com/300x300/1db954/ffffff?text=No+Image',
-    duration: Math.round((track.duration_ms || 0) / 1000),
-    uri: track.uri,
-    previewUrl: track.preview_url,
-    externalUrl: track.external_urls?.spotify
-  }))
 }
+
+// Real-time Spotify track search for mixing
+app.get('/api/spotify/search', async (req, res) => {
+  try {
+    const { q, limit = 20 } = req.query
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({ error: 'Search query must be at least 2 characters' })
+    }
+    
+    console.log(`🔍 Starting Spotify search for: "${q}"`)
+    
+    const token = await getSpotifyToken()
+    console.log(`✅ Got Spotify token: ${token.substring(0, 20)}...`)
+    
+    const results = await fetchSearchPreviewables(token, { 
+      q: q.trim(), 
+      limit: Math.min(parseInt(limit), 50),
+      market: 'US'
+    })
+    
+    console.log(`🔍 Spotify search for "${q}" returned ${results.length} tracks with previews`)
+    res.json({
+      query: q,
+      tracks: results,
+      count: results.length
+    })
+    
+  } catch (error) {
+    console.error('Spotify search error:', error.message)
+    if (error.message.includes('Rate limited')) {
+      res.status(429).json({ 
+        error: 'Spotify API rate limited. Please wait a moment and try again.',
+        retryAfter: 30
+      })
+    } else {
+      res.status(500).json({ error: `Search failed: ${error.message}` })
+    }
+  }
+})
 
 app.get('/api/library', async (req, res) => {
   try {
@@ -393,13 +464,19 @@ app.get('/api/library', async (req, res) => {
     const markets = envMarkets.length ? envMarkets : ['US','GB','DE']
     const seen = new Set()
     const library = []
-    const queries = ['love','time','night','dance','remix','feat','live','the','you','me','sun','moon','heart','beat','club']
-    const offsets = [0, 50, 100]
+    
+    // Use more targeted queries that are likely to have preview URLs
+    const queries = ['the beatles', 'queen', 'michael jackson', 'madonna', 'elvis presley', 'frank sinatra', 'bob dylan', 'jimi hendrix', 'led zeppelin', 'pink floyd']
+    const offsets = [0, 20] // Reduced to avoid rate limiting
+    
     for (const market of markets) {
       for (const q of queries) {
         for (const offset of offsets) {
           try {
-            const results = await fetchSearchPreviewables(token, { q, limit: 50, market, offset })
+            console.log(`🔍 Searching for "${q}" in ${market} (offset: ${offset})`)
+            const results = await fetchSearchPreviewables(token, { q, limit: 20, market, offset })
+            console.log(`✅ Found ${results.length} tracks with previews for "${q}"`)
+            
             for (const t of results) {
               if (seen.has(t.id)) continue
               seen.add(t.id)
@@ -407,7 +484,9 @@ app.get('/api/library', async (req, res) => {
               if (library.length >= totalLimit) break
             }
           } catch (e) {
-            console.warn('Search fallback failed:', e.message)
+            console.warn(`Search failed for "${q}":`, e.message)
+            // Add delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 1000))
           }
           if (library.length >= totalLimit) break
         }
@@ -415,7 +494,9 @@ app.get('/api/library', async (req, res) => {
       }
       if (library.length >= totalLimit) break
     }
+    
     if (library.length === 0) {
+      console.log('⚠️ No Spotify tracks found, using fallback library')
       // Server-side static fallback from public or dist
       try {
         const publicPath = path.join(__dirname, '..', 'public', 'library.json')
@@ -430,6 +511,8 @@ app.get('/api/library', async (req, res) => {
         console.warn('Static library fallback failed:', e.message)
       }
     }
+    
+    console.log(`🎵 Library built successfully with ${library.length} tracks`)
     res.json(library)
   } catch (e) {
     console.error('Library error:', e?.message || e)
