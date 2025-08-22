@@ -187,8 +187,31 @@ const MixPlayer = ({ mix }) => {
                   </span>
                 </div>
                 <div className="section-description">{section.description}</div>
+                <div className="section-track">
+                  <span className="track-indicator">
+                    {section.track === 'track1' ? '🎵 Track 1' : 
+                     section.track === 'track2' ? '🎵 Track 2' : '🎵 Both Tracks'}
+                  </span>
+                </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Track Selection Details */}
+      {mix.trackSelections && (
+        <div className="track-selections">
+          <h4>🎯 Song Sections Used</h4>
+          <div className="selection-grid">
+            <div className="selection-item">
+              <h5>Track 1: {mix.trackSelections.track1.reason}</h5>
+              <p>Used: {formatTime(mix.trackSelections.track1.startTime)} - {formatTime(mix.trackSelections.track1.startTime + mix.trackSelections.track1.duration)}</p>
+            </div>
+            <div className="selection-item">
+              <h5>Track 2: {mix.trackSelections.track2.reason}</h5>
+              <p>Used: {formatTime(mix.trackSelections.track2.startTime)} - {formatTime(mix.trackSelections.track2.startTime + mix.trackSelections.track2.duration)}</p>
+            </div>
           </div>
         </div>
       )}

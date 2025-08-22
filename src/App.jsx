@@ -66,7 +66,7 @@ function App() {
       }, 300)
 
       // Generate the mix using local audio files
-      const mix = await audioMixer.generateMix(uploadedTracks[0], uploadedTracks[1], 30)
+      const mix = await audioMixer.generateMix(uploadedTracks[0], uploadedTracks[1])
 
       clearInterval(progressInterval)
       setGenerationProgress(100)
