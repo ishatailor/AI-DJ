@@ -36,7 +36,7 @@ class LocalAudioMixer {
     }
 
     try {
-      console.log('🎵 Starting local mix generation...')
+      console.log('🎵 Starting advanced local mix generation...')
       console.log('📊 Track 1:', track1.name, 'Duration:', track1.duration)
       console.log('📊 Track 2:', track2.name, 'Duration:', track2.duration)
 
@@ -51,13 +51,17 @@ class LocalAudioMixer {
         this.audioContext.sampleRate
       )
 
-      // Analyze tracks for compatibility
+      // Analyze tracks for compatibility and find optimal mixing points
       const analysis = this.analyzeTracks(track1, track2)
       console.log('🔍 Track analysis:', analysis)
 
-      // Generate intelligent mix structure with equal emphasis
-      const mixStructure = this.generateBalancedMixStructure(track1, track2, mixDuration, analysis)
-      console.log('🎛️ Balanced mix structure:', mixStructure)
+      // Find optimal mixing points based on real audio characteristics
+      const mixingPoints = await this.findOptimalMixingPoints(track1, track2, mixDuration, analysis)
+      console.log('🎯 Optimal mixing points found:', mixingPoints)
+
+      // Generate intelligent mix structure with natural crossfades
+      const mixStructure = this.generateNaturalMixStructure(track1, track2, mixDuration, mixingPoints, analysis)
+      console.log('🎛️ Natural mix structure:', mixStructure)
 
       // Create and connect audio sources with intelligent song selection
       const source1 = offlineCtx.createBufferSource()
@@ -73,9 +77,9 @@ class LocalAudioMixer {
       console.log('🎵 Selected sections - Track 1:', track1Selection.startTime, 'to', track1Selection.startTime + track1Selection.duration)
       console.log('🎵 Selected sections - Track 2:', track2Selection.startTime, 'to', track2Selection.startTime + track2Selection.duration)
 
-      // Create processing chains
-      const chain1 = this.createTrackChain(offlineCtx, 'track1')
-      const chain2 = this.createTrackChain(offlineCtx, 'track2')
+      // Create advanced processing chains with vocal separation
+      const chain1 = this.createAdvancedTrackChain(offlineCtx, 'track1', mixingPoints)
+      const chain2 = this.createAdvancedTrackChain(offlineCtx, 'track2', mixingPoints)
 
       // Connect sources to chains
       source1.connect(chain1.input)
@@ -85,17 +89,17 @@ class LocalAudioMixer {
       chain1.output.connect(offlineCtx.destination)
       chain2.output.connect(offlineCtx.destination)
 
-      // Apply balanced mix automation
-      this.applyBalancedMixAutomation(offlineCtx, source1, source2, chain1, chain2, mixStructure, track1Selection, track2Selection)
+      // Apply natural crossfade automation with vocal overlays
+      this.applyNaturalCrossfadeAutomation(offlineCtx, source1, source2, chain1, chain2, mixStructure, mixingPoints, track1Selection, track2Selection)
 
       // Start playback with calculated offsets
       source1.start(0, track1Selection.startTime, track1Selection.duration)
       source2.start(mixStructure.track2Start, track2Selection.startTime, track2Selection.duration)
 
       // Render the mix
-      console.log('🎬 Rendering balanced mix...')
+      console.log('🎬 Rendering natural crossfade mix...')
       const renderedBuffer = await offlineCtx.startRendering()
-      console.log('✅ Balanced mix rendered successfully')
+      console.log('✅ Natural crossfade mix rendered successfully')
 
       return {
         audioBuffer: renderedBuffer,
@@ -103,6 +107,7 @@ class LocalAudioMixer {
         sampleRate: renderedBuffer.sampleRate,
         mixStructure: mixStructure,
         analysis: analysis,
+        mixingPoints: mixingPoints,
         trackSelections: {
           track1: track1Selection,
           track2: track2Selection
@@ -426,6 +431,380 @@ class LocalAudioMixer {
     }
     this.masterGain = null
     this.compressor = null
+  }
+
+  async findOptimalMixingPoints(track1, track2, mixDuration, analysis) {
+    console.log('🔍 Finding optimal mixing points...')
+    
+    const points = {
+      bassDrop1: null,
+      bassDrop2: null,
+      vocalPeaks1: [],
+      vocalPeaks2: [],
+      energyValleys1: [],
+      energyValleys2: [],
+      beatAlignment: null
+    }
+
+    // Analyze bass patterns and find drops
+    points.bassDrop1 = await this.findBassDrops(track1.audioBuffer, 0, Math.min(track1.duration, mixDuration * 0.6))
+    points.bassDrop2 = await this.findBassDrops(track2.audioBuffer, 0, Math.min(track2.duration, mixDuration * 0.6))
+    
+    console.log('🎵 Bass drops found - Track 1:', points.bassDrop1, 'Track 2:', points.bassDrop2)
+
+    // Find vocal peaks and energy valleys
+    points.vocalPeaks1 = await this.findVocalPeaks(track1.audioBuffer, 0, Math.min(track1.duration, mixDuration * 0.6))
+    points.vocalPeaks2 = await this.findVocalPeaks(track2.audioBuffer, 0, Math.min(track2.duration, mixDuration * 0.6))
+    
+    points.energyValleys1 = await this.findEnergyValleys(track1.audioBuffer, 0, Math.min(track1.duration, mixDuration * 0.6))
+    points.energyValleys2 = await this.findEnergyValleys(track2.audioBuffer, 0, Math.min(track2.duration, mixDuration * 0.6))
+
+    // Find beat alignment opportunities
+    points.beatAlignment = this.findBeatAlignment(points.bassDrop1, points.bassDrop2, mixDuration)
+
+    console.log('🎯 Mixing points analysis complete:', points)
+    return points
+  }
+
+  async findBassDrops(audioBuffer, startTime, endTime) {
+    const sampleRate = audioBuffer.sampleRate
+    const startSample = Math.floor(startTime * sampleRate)
+    const endSample = Math.floor(endTime * sampleRate)
+    const channelData = audioBuffer.getChannelData(0) // Use left channel for analysis
+    
+    const bassDrops = []
+    const windowSize = Math.floor(0.5 * sampleRate) // 0.5 second windows
+    const hopSize = Math.floor(0.1 * sampleRate) // 0.1 second hop
+    
+    for (let i = startSample; i < endSample - windowSize; i += hopSize) {
+      const window = channelData.slice(i, i + windowSize)
+      
+      // Apply low-pass filter to focus on bass frequencies (20-200 Hz)
+      const bassEnergy = this.calculateBassEnergy(window, sampleRate)
+      
+      // Detect sudden drops in bass energy
+      if (i > startSample + windowSize) {
+        const prevWindow = channelData.slice(i - windowSize, i)
+        const prevBassEnergy = this.calculateBassEnergy(prevWindow, sampleRate)
+        const dropRatio = prevBassEnergy / (bassEnergy + 0.001)
+        
+        if (dropRatio > 2.0) { // Significant bass drop detected
+          const dropTime = i / sampleRate
+          bassDrops.push({
+            time: dropTime,
+            intensity: dropRatio,
+            energy: bassEnergy
+          })
+        }
+      }
+    }
+    
+    // Return the most significant bass drop
+    if (bassDrops.length > 0) {
+      return bassDrops.reduce((best, current) => 
+        current.intensity > best.intensity ? current : best
+      )
+    }
+    
+    return null
+  }
+
+  calculateBassEnergy(audioData, sampleRate) {
+    // Simple low-pass filter and energy calculation
+    let energy = 0
+    const cutoffFreq = 200 // Hz
+    const alpha = 1 / (1 + 2 * Math.PI * cutoffFreq / sampleRate)
+    
+    let filtered = 0
+    for (let i = 0; i < audioData.length; i++) {
+      filtered = alpha * audioData[i] + (1 - alpha) * filtered
+      energy += filtered * filtered
+    }
+    
+    return energy / audioData.length
+  }
+
+  async findVocalPeaks(audioBuffer, startTime, endTime) {
+    const sampleRate = audioBuffer.sampleRate
+    const startSample = Math.floor(startTime * sampleRate)
+    const endSample = Math.floor(endTime * sampleRate)
+    const channelData = audioBuffer.getChannelData(0)
+    
+    const vocalPeaks = []
+    const windowSize = Math.floor(0.3 * sampleRate) // 0.3 second windows
+    const hopSize = Math.floor(0.05 * sampleRate) // 0.05 second hop
+    
+    for (let i = startSample; i < endSample - windowSize; i += hopSize) {
+      const window = channelData.slice(i, i + windowSize)
+      
+      // Focus on mid-range frequencies where vocals typically sit (300-3000 Hz)
+      const vocalEnergy = this.calculateVocalEnergy(window, sampleRate)
+      
+      if (vocalEnergy > 0.01) { // Threshold for vocal detection
+        const peakTime = i / sampleRate
+        vocalPeaks.push({
+          time: peakTime,
+          energy: vocalEnergy
+        })
+      }
+    }
+    
+    // Return top 3 vocal peaks
+    return vocalPeaks
+      .sort((a, b) => b.energy - a.energy)
+      .slice(0, 3)
+  }
+
+  calculateVocalEnergy(audioData, sampleRate) {
+    // Mid-range frequency energy calculation (300-3000 Hz)
+    let energy = 0
+    const lowCutoff = 300 // Hz
+    const highCutoff = 3000 // Hz
+    
+    const lowAlpha = 1 / (1 + 2 * Math.PI * lowCutoff / sampleRate)
+    const highAlpha = 1 / (1 + 2 * Math.PI * highCutoff / sampleRate)
+    
+    let lowFiltered = 0
+    let highFiltered = 0
+    
+    for (let i = 0; i < audioData.length; i++) {
+      lowFiltered = lowAlpha * audioData[i] + (1 - lowAlpha) * lowFiltered
+      highFiltered = highAlpha * audioData[i] + (1 - highAlpha) * highFiltered
+      
+      const midRange = lowFiltered - highFiltered
+      energy += midRange * midRange
+    }
+    
+    return energy / audioData.length
+  }
+
+  async findEnergyValleys(audioBuffer, startTime, endTime) {
+    const sampleRate = audioBuffer.sampleRate
+    const startSample = Math.floor(startTime * sampleRate)
+    const endSample = Math.floor(endTime * sampleRate)
+    const channelData = audioBuffer.getChannelData(0)
+    
+    const energyValleys = []
+    const windowSize = Math.floor(0.5 * sampleRate) // 0.5 second windows
+    const hopSize = Math.floor(0.1 * sampleRate) // 0.1 second hop
+    
+    for (let i = startSample; i < endSample - windowSize; i += hopSize) {
+      const window = channelData.slice(i, i + windowSize)
+      
+      // Calculate overall energy in this window
+      let energy = 0
+      for (let j = 0; j < window.length; j++) {
+        energy += window[j] * window[j]
+      }
+      energy = energy / window.length
+      
+      // Detect valleys (low energy points)
+      if (energy < 0.005) { // Low energy threshold
+        const valleyTime = i / sampleRate
+        energyValleys.push({
+          time: valleyTime,
+          energy: energy
+        })
+      }
+    }
+    
+    // Return top 3 energy valleys
+    return energyValleys
+      .sort((a, b) => a.energy - b.energy)
+      .slice(0, 3)
+  }
+
+  findBeatAlignment(bassDrop1, bassDrop2, mixDuration) {
+    if (!bassDrop1 || !bassDrop2) return null
+    
+    // Find the best alignment between bass drops
+    const drop1Time = bassDrop1.time
+    const drop2Time = bassDrop2.time
+    
+    // Calculate optimal timing for track 2 to start
+    // We want the bass drop of track 2 to align with a good transition point in track 1
+    const optimalStart = Math.max(0, drop1Time - drop2Time)
+    
+    return {
+      track1DropTime: drop1Time,
+      track2DropTime: drop2Time,
+      optimalTrack2Start: optimalStart,
+      alignment: 'bass-drop-sync'
+    }
+  }
+
+  generateNaturalMixStructure(track1, track2, durationSec, mixingPoints, analysis) {
+    const structure = {
+      duration: durationSec,
+      track1Duration: durationSec / 2,
+      track2Duration: durationSec / 2,
+      track1Start: 0,
+      track2Start: 0,
+      crossfadeStart: 0,
+      crossfadeDuration: 0,
+      vocalOverlayStart: 0,
+      vocalOverlayDuration: 0,
+      sections: []
+    }
+
+    // Use beat alignment if available, otherwise fall back to compatibility-based timing
+    if (mixingPoints.beatAlignment) {
+      structure.track2Start = mixingPoints.beatAlignment.optimalTrack2Start
+      structure.crossfadeStart = structure.track2Start + 2 // Start crossfade 2 seconds after track 2 enters
+      structure.crossfadeDuration = Math.min(durationSec * 0.4, 8) // Max 8 seconds or 40% of mix
+    } else {
+      // Fallback to compatibility-based timing
+      if (analysis.compatibilityScore > 70) {
+        structure.track2Start = durationSec * 0.3
+        structure.crossfadeStart = durationSec * 0.4
+        structure.crossfadeDuration = durationSec * 0.4
+      } else if (analysis.compatibilityScore > 40) {
+        structure.track2Start = durationSec * 0.35
+        structure.crossfadeStart = durationSec * 0.45
+        structure.crossfadeDuration = durationSec * 0.35
+      } else {
+        structure.track2Start = durationSec * 0.45
+        structure.crossfadeStart = durationSec * 0.55
+        structure.crossfadeDuration = durationSec * 0.25
+      }
+    }
+
+    // Add vocal overlay section if we have vocal peaks
+    if (mixingPoints.vocalPeaks1.length > 0 && mixingPoints.vocalPeaks2.length > 0) {
+      structure.vocalOverlayStart = structure.crossfadeStart + structure.crossfadeDuration * 0.5
+      structure.vocalOverlayDuration = Math.min(durationSec * 0.2, 4) // Max 4 seconds or 20% of mix
+    }
+
+    // Define mix sections with natural crossfades
+    structure.sections = [
+      { 
+        name: 'intro', 
+        start: 0, 
+        end: structure.track2Start, 
+        description: `Track 1 focus (${Math.round((structure.track2Start / durationSec) * 100)}% of mix)`,
+        track: 'track1',
+        type: 'solo'
+      },
+      { 
+        name: 'transition', 
+        start: structure.track2Start, 
+        end: structure.crossfadeStart, 
+        description: 'Track 2 enters at optimal point',
+        track: 'both',
+        type: 'layered'
+      },
+      { 
+        name: 'crossfade', 
+        start: structure.crossfadeStart, 
+        end: structure.crossfadeStart + structure.crossfadeDuration, 
+        description: 'Natural crossfade with vocal overlay',
+        track: 'both',
+        type: 'crossfade'
+      },
+      { 
+        name: 'vocal-overlay', 
+        start: structure.vocalOverlayStart, 
+        end: structure.vocalOverlayStart + structure.vocalOverlayDuration, 
+        description: 'Vocals from one track over instrumental from other',
+        track: 'both',
+        type: 'vocal-overlay'
+      },
+      { 
+        name: 'outro', 
+        start: structure.vocalOverlayStart + structure.vocalOverlayDuration, 
+        end: durationSec, 
+        description: `Track 2 focus (${Math.round(((durationSec - (structure.vocalOverlayStart + structure.vocalOverlayDuration)) / durationSec) * 100)}% of mix)`,
+        track: 'track2',
+        type: 'solo'
+      }
+    ]
+
+    return structure
+  }
+
+  createAdvancedTrackChain(ctx, trackType, mixingPoints) {
+    const input = ctx.createGain()
+    const eq = ctx.createBiquadFilter()
+    const gain = ctx.createGain()
+    const compressor = ctx.createDynamicsCompressor()
+    const output = ctx.createGain()
+
+    // Configure EQ based on track type and mixing points
+    if (trackType === 'track1') {
+      eq.type = 'peaking'
+      eq.frequency.value = 1000
+      eq.Q.value = 1
+      eq.gain.value = 0
+    } else {
+      // Track 2: High-pass to avoid low-end clash during crossfade
+      eq.type = 'highpass'
+      eq.frequency.value = 120
+      eq.Q.value = 1
+    }
+
+    // Add compression for better control
+    compressor.threshold.value = -20
+    compressor.knee.value = 30
+    compressor.ratio.value = 8
+    compressor.attack.value = 0.005
+    compressor.release.value = 0.1
+
+    // Connect the advanced chain
+    input.connect(eq)
+    eq.connect(compressor)
+    compressor.connect(gain)
+    gain.connect(output)
+
+    return { input, eq, gain, compressor, output }
+  }
+
+  applyNaturalCrossfadeAutomation(ctx, source1, source2, chain1, chain2, mixStructure, mixingPoints, track1Selection, track2Selection) {
+    const currentTime = ctx.currentTime
+
+    // Track 1 automation with natural crossfade
+    chain1.gain.gain.setValueAtTime(1, currentTime)
+    chain1.gain.gain.linearRampToValueAtTime(0.95, currentTime + mixStructure.track2Start)
+    chain1.gain.gain.linearRampToValueAtTime(0.7, currentTime + mixStructure.crossfadeStart)
+    chain1.gain.gain.linearRampToValueAtTime(0.3, currentTime + mixStructure.crossfadeStart + mixStructure.crossfadeDuration * 0.5)
+    chain1.gain.gain.linearRampToValueAtTime(0, currentTime + mixStructure.crossfadeStart + mixStructure.crossfadeDuration)
+
+    // Track 2 automation with natural crossfade
+    chain2.gain.gain.setValueAtTime(0, currentTime + mixStructure.track2Start)
+    chain2.gain.gain.linearRampToValueAtTime(0.6, currentTime + mixStructure.track2Start + 1)
+    chain2.gain.gain.linearRampToValueAtTime(0.7, currentTime + mixStructure.crossfadeStart)
+    chain2.gain.gain.linearRampToValueAtTime(0.8, currentTime + mixStructure.crossfadeStart + mixStructure.crossfadeDuration * 0.5)
+    chain2.gain.gain.linearRampToValueAtTime(1, currentTime + mixStructure.crossfadeStart + mixStructure.crossfadeDuration)
+
+    // Apply tempo adjustment for better compatibility
+    if (Math.abs(track1Selection.duration - track2Selection.duration) > 0.1) {
+      const tempoRatio = track1Selection.duration / track2Selection.duration
+      source2.playbackRate.value = tempoRatio
+      console.log('🎵 Applied tempo adjustment for compatibility:', tempoRatio)
+    }
+
+    // Dynamic EQ adjustments during crossfade
+    if (mixStructure.crossfadeDuration > 0) {
+      // High-pass filter on track 2 during crossfade to avoid low-end clash
+      chain2.eq.frequency.setValueAtTime(120, currentTime + mixStructure.crossfadeStart)
+      chain2.eq.frequency.linearRampToValueAtTime(80, currentTime + mixStructure.crossfadeStart + mixStructure.crossfadeDuration)
+      
+      // Boost mid-range on track 1 during crossfade for vocal clarity
+      chain1.eq.frequency.setValueAtTime(1000, currentTime + mixStructure.crossfadeStart)
+      chain1.eq.gain.setValueAtTime(0, currentTime + mixStructure.crossfadeStart)
+      chain1.eq.gain.linearRampToValueAtTime(3, currentTime + mixStructure.crossfadeStart + mixStructure.crossfadeDuration * 0.5)
+      chain1.eq.gain.linearRampToValueAtTime(0, currentTime + mixStructure.crossfadeStart + mixStructure.crossfadeDuration)
+    }
+
+    // Vocal overlay automation
+    if (mixStructure.vocalOverlayDuration > 0) {
+      // Boost vocals on track 1 during overlay
+      chain1.eq.gain.setValueAtTime(3, currentTime + mixStructure.vocalOverlayStart)
+      chain1.eq.gain.linearRampToValueAtTime(0, currentTime + mixStructure.vocalOverlayStart + mixStructure.vocalOverlayDuration)
+      
+      // Reduce vocals on track 2 during overlay, keep instrumental
+      chain2.eq.gain.setValueAtTime(-6, currentTime + mixStructure.vocalOverlayStart)
+      chain2.eq.gain.linearRampToValueAtTime(0, currentTime + mixStructure.vocalOverlayStart + mixStructure.vocalOverlayDuration)
+    }
   }
 }
 

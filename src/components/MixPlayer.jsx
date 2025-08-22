@@ -173,13 +173,85 @@ const MixPlayer = ({ mix }) => {
         </div>
       )}
 
+      {/* Mixing Points Analysis */}
+      {mix.mixingPoints && (
+        <div className="mixing-points">
+          <h4>🎯 Advanced Mixing Points</h4>
+          <div className="points-grid">
+            <div className="point-category">
+              <h5>🎵 Bass Drops</h5>
+              <div className="point-item">
+                <span>Track 1:</span>
+                {mix.mixingPoints.bassDrop1 ? (
+                  <span className="point-value">
+                    {formatTime(mix.mixingPoints.bassDrop1.time)} (Intensity: {mix.mixingPoints.bassDrop1.intensity.toFixed(1)}x)
+                  </span>
+                ) : (
+                  <span className="point-value">None detected</span>
+                )}
+              </div>
+              <div className="point-item">
+                <span>Track 2:</span>
+                {mix.mixingPoints.bassDrop2 ? (
+                  <span className="point-value">
+                    {formatTime(mix.mixingPoints.bassDrop2.time)} (Intensity: {mix.mixingPoints.bassDrop2.intensity.toFixed(1)}x)
+                  </span>
+                ) : (
+                  <span className="point-value">None detected</span>
+                )}
+              </div>
+            </div>
+            
+            <div className="point-category">
+              <h5>🎤 Vocal Peaks</h5>
+              <div className="point-item">
+                <span>Track 1:</span>
+                <span className="point-value">
+                  {mix.mixingPoints.vocalPeaks1.length > 0 
+                    ? mix.mixingPoints.vocalPeaks1.map((peak, i) => 
+                        `${formatTime(peak.time)}${i < mix.mixingPoints.vocalPeaks1.length - 1 ? ', ' : ''}`
+                      ).join('')
+                    : 'None detected'
+                  }
+                </span>
+              </div>
+              <div className="point-item">
+                <span>Track 2:</span>
+                <span className="point-value">
+                  {mix.mixingPoints.vocalPeaks2.length > 0 
+                    ? mix.mixingPoints.vocalPeaks2.map((peak, i) => 
+                        `${formatTime(peak.time)}${i < mix.mixingPoints.vocalPeaks2.length - 1 ? ', ' : ''}`
+                      ).join('')
+                    : 'None detected'
+                  }
+                </span>
+              </div>
+            </div>
+
+            {mix.mixingPoints.beatAlignment && (
+              <div className="point-category">
+                <h5>🥁 Beat Alignment</h5>
+                <div className="point-item">
+                  <span>Type:</span>
+                  <span className="point-value">{mix.mixingPoints.beatAlignment.alignment}</span>
+                </div>
+                <div className="point-item">
+                  <span>Optimal Start:</span>
+                  <span className="point-value">{formatTime(mix.mixingPoints.beatAlignment.optimalTrack2Start)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Mix Structure */}
       {mix.mixStructure && (
         <div className="mix-structure">
-          <h4>🎬 Mix Structure</h4>
+          <h4>🎬 Natural Mix Structure</h4>
           <div className="structure-timeline">
             {mix.mixStructure.sections.map((section, index) => (
-              <div key={index} className="structure-section">
+              <div key={index} className={`structure-section ${section.type}`}>
                 <div className="section-header">
                   <span className="section-name">{section.name}</span>
                   <span className="section-time">
@@ -188,10 +260,11 @@ const MixPlayer = ({ mix }) => {
                 </div>
                 <div className="section-description">{section.description}</div>
                 <div className="section-track">
-                  <span className="track-indicator">
+                  <span className={`track-indicator ${section.type}`}>
                     {section.track === 'track1' ? '🎵 Track 1' : 
                      section.track === 'track2' ? '🎵 Track 2' : '🎵 Both Tracks'}
                   </span>
+                  <span className="section-type">{section.type}</span>
                 </div>
               </div>
             ))}
