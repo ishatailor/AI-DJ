@@ -1,0 +1,283 @@
+.mix-player {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  margin: 2rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.mix-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.mix-header h3 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(45deg, #1db954, #1ed760);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.mix-header p {
+  opacity: 0.8;
+  font-size: 1.1rem;
+}
+
+/* Mix Analysis */
+.mix-analysis {
+  margin-bottom: 2rem;
+}
+
+.mix-analysis h4 {
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+  color: #1db954;
+}
+
+.analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.analysis-item {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1rem;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.analysis-label {
+  display: block;
+  font-size: 0.9rem;
+  opacity: 0.7;
+  margin-bottom: 0.5rem;
+}
+
+.analysis-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1db954;
+}
+
+/* Mix Structure */
+.mix-structure {
+  margin-bottom: 2rem;
+}
+
+.mix-structure h4 {
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+  color: #1db954;
+}
+
+.structure-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.structure-section {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1rem;
+  border-radius: 10px;
+  border-left: 4px solid #1db954;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.section-name {
+  font-weight: 600;
+  text-transform: capitalize;
+  color: #1db954;
+}
+
+.section-time {
+  font-size: 0.9rem;
+  opacity: 0.7;
+  font-family: monospace;
+}
+
+.section-description {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+/* Audio Controls */
+.audio-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.control-btn {
+  background: #1db954;
+  color: white;
+  border: none;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.control-btn:hover {
+  background: #1ed760;
+  transform: scale(1.05);
+}
+
+.control-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.progress-container {
+  flex: 1;
+  min-width: 200px;
+  cursor: pointer;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1db954, #1ed760);
+  border-radius: 4px;
+  transition: width 0.1s ease;
+}
+
+.time-display {
+  text-align: center;
+  font-size: 0.9rem;
+  opacity: 0.8;
+  font-family: monospace;
+}
+
+/* Volume Control */
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.volume-control span {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.volume-slider {
+  width: 100px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #1db954;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #1db954;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+/* Download Section */
+.download-section {
+  text-align: center;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.download-btn {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 50px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.download-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .mix-player {
+    padding: 1.5rem;
+  }
+  
+  .mix-header h3 {
+    font-size: 1.5rem;
+  }
+  
+  .analysis-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .audio-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .control-btn {
+    align-self: center;
+  }
+  
+  .volume-control {
+    justify-content: center;
+  }
+  
+  .structure-section {
+    padding: 0.75rem;
+  }
+  
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+}

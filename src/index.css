@@ -457,6 +457,122 @@ body {
   color: white;
 }
 
+/* Mix Controls */
+.mix-controls {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  margin: 2rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-align: center;
+}
+
+.generate-btn {
+  background: linear-gradient(135deg, #1db954, #1ed760);
+  color: white;
+  border: none;
+  padding: 1.5rem 3rem;
+  border-radius: 50px;
+  font-size: 1.3rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 20px rgba(29, 185, 84, 0.3);
+}
+
+.generate-btn:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 25px rgba(29, 185, 84, 0.4);
+}
+
+.generate-btn:disabled {
+  background: #666;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Track Info Display */
+.track-info-display {
+  margin-top: 2rem;
+}
+
+.track-info-display h3 {
+  color: #1db954;
+  margin-bottom: 1.5rem;
+  font-size: 1.3rem;
+}
+
+.track-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.track-card {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1.5rem;
+  border-radius: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.track-card:hover {
+  border-color: #1db954;
+  transform: translateY(-2px);
+}
+
+.track-number {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1db954;
+  color: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.track-details {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.track-details strong {
+  display: block;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  color: white;
+}
+
+.track-details small {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+}
+
+/* Error Message */
+.error-message {
+  text-align: center;
+  color: #ff6b6b;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: rgba(255, 107, 107, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  font-weight: 500;
+}
+
 /* Waveform Styles */
 .waveform-toggle {
   background: rgba(255, 255, 255, 0.1);
@@ -497,5 +613,19 @@ body {
   
   .mix-stats {
     grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .track-pair {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .mix-controls {
+    padding: 1.5rem;
+  }
+  
+  .generate-btn {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
   }
 }

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { getMixRecommendations } from '../services/mixService'
+import './MixPlayer.css'
 
 const MixPlayer = ({ mix }) => {
   const [isPlaying, setIsPlaying] = useState(false)
@@ -7,153 +7,193 @@ const MixPlayer = ({ mix }) => {
   const [volume, setVolume] = useState(0.8)
   const [showWaveform, setShowWaveform] = useState(false)
   const audioRef = useRef(null)
-  const progressInterval = useRef(null)
+  const audioContextRef = useRef(null)
+  const sourceRef = useRef(null)
 
   useEffect(() => {
-    return () => {
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current)
+    if (mix && mix.audioBuffer) {
+      // Initialize audio context for local playback
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)()
+      
+      // Create audio source from the rendered buffer
+      sourceRef.current = audioContextRef.current.createBufferSource()
+      sourceRef.current.buffer = mix.audioBuffer
+      
+      // Create gain node for volume control
+      const gainNode = audioContextRef.current.createGain()
+      gainNode.gain.value = volume
+      
+      // Connect the audio chain
+      sourceRef.current.connect(gainNode)
+      gainNode.connect(audioContextRef.current.destination)
+      
+      // Set up time update
+      const updateTime = () => {
+        if (sourceRef.current && audioContextRef.current) {
+          const elapsed = audioContextRef.current.currentTime - (sourceRef.current.startTime || 0)
+          if (elapsed >= 0 && elapsed <= mix.duration) {
+            setCurrentTime(elapsed)
+          }
+        }
+      }
+      
+      const timeInterval = setInterval(updateTime, 100)
+      
+      return () => {
+        clearInterval(timeInterval)
+        if (audioContextRef.current) {
+          audioContextRef.current.close()
+        }
       }
     }
-  }, [])
+  }, [mix])
 
   const togglePlay = () => {
+    if (!sourceRef.current || !audioContextRef.current) return
+
     if (isPlaying) {
-      audioRef.current?.pause()
-      setIsPlaying(false)
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current)
+      // Stop playback
+      try {
+        sourceRef.current.stop()
+        setIsPlaying(false)
+      } catch (error) {
+        console.log('Audio already stopped')
       }
     } else {
-      audioRef.current?.play()
-      setIsPlaying(true)
-      startProgressTracking()
-    }
-  }
-
-  const startProgressTracking = () => {
-    progressInterval.current = setInterval(() => {
-      if (audioRef.current) {
-        setCurrentTime(audioRef.current.currentTime)
+      // Start playback
+      try {
+        sourceRef.current = audioContextRef.current.createBufferSource()
+        sourceRef.current.buffer = mix.audioBuffer
+        
+        const gainNode = audioContextRef.current.createGain()
+        gainNode.gain.value = volume
+        
+        sourceRef.current.connect(gainNode)
+        gainNode.connect(audioContextRef.current.destination)
+        
+        sourceRef.current.startTime = audioContextRef.current.currentTime
+        sourceRef.current.start(0)
+        
+        setIsPlaying(true)
+        
+        // Auto-stop when mix ends
+        sourceRef.current.onended = () => {
+          setIsPlaying(false)
+          setCurrentTime(0)
+        }
+      } catch (error) {
+        console.error('Error starting playback:', error)
       }
-    }, 100)
-  }
-
-  const handleTimeUpdate = (e) => {
-    const time = e.target.currentTime
-    // Clamp to 30s preview
-    const clamped = Math.min(time, 30)
-    setCurrentTime(clamped)
-    if (time >= 30 && audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.currentTime = 0
-      setIsPlaying(false)
-      if (progressInterval.current) clearInterval(progressInterval.current)
     }
   }
 
   const handleSeek = (e) => {
+    if (!sourceRef.current || !audioContextRef.current) return
+    
     const rect = e.currentTarget.getBoundingClientRect()
     const clickX = e.clientX - rect.left
-    const width = rect.width
-    const seekTime = (clickX / width) * mix.structure.totalDuration
-
-    if (audioRef.current) {
-      audioRef.current.currentTime = seekTime
+    const seekPercent = clickX / rect.width
+    const seekTime = seekPercent * mix.duration
+    
+    // Stop current playback and restart at new position
+    try {
+      sourceRef.current.stop()
+      
+      sourceRef.current = audioContextRef.current.createBufferSource()
+      sourceRef.current.buffer = mix.audioBuffer
+      
+      const gainNode = audioContextRef.current.createGain()
+      gainNode.gain.value = volume
+      
+      sourceRef.current.connect(gainNode)
+      gainNode.connect(audioContextRef.current.destination)
+      
+      sourceRef.current.startTime = audioContextRef.current.currentTime - seekTime
+      sourceRef.current.start(0)
+      
       setCurrentTime(seekTime)
+      setIsPlaying(true)
+      
+      sourceRef.current.onended = () => {
+        setIsPlaying(false)
+        setCurrentTime(0)
+      }
+    } catch (error) {
+      console.error('Error seeking:', error)
     }
   }
 
   const formatTime = (seconds) => {
+    if (!seconds || isNaN(seconds)) return '0:00'
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const getCompatibilityColor = (score) => {
-    if (score >= 80) return '#4ade80'
-    if (score >= 60) return '#fbbf24'
-    return '#f87171'
-  }
-
   const getCompatibilityText = (score) => {
     if (score >= 80) return 'Excellent'
     if (score >= 60) return 'Good'
-    if (score >= 40) return 'Fair'
-    return 'Poor'
+    if (score >= 40) return 'Moderate'
+    return 'Challenging'
+  }
+
+  if (!mix) {
+    return <div className="mix-player">No mix available</div>
   }
 
   return (
     <div className="mix-player">
-      <div className="mix-info">
-        <h3>{mix.name}</h3>
-        <p>Generated on {new Date(mix.generatedAt).toLocaleDateString()}</p>
+      <div className="mix-header">
+        <h3>🎵 Your Generated Mix</h3>
+        <p>Duration: {formatTime(mix.duration)} | Sample Rate: {mix.sampleRate}Hz</p>
       </div>
 
-      <div className="mix-stats">
-        <div className="stat-item">
-          <div className="stat-value" style={{ color: getCompatibilityColor(mix.compatibility.score) }}>
-            {mix.compatibility.score}%
-          </div>
-          <div className="stat-label">Compatibility</div>
-        </div>
-
-        <div className="stat-item">
-          <div className="stat-value">{mix.compatibility.bpmScore}%</div>
-          <div className="stat-label">BPM Match</div>
-        </div>
-
-        <div className="stat-item">
-          <div className="stat-value">{mix.compatibility.keyScore}%</div>
-          <div className="stat-label">Key Match</div>
-        </div>
-
-        <div className="stat-item">
-          <div className="stat-value">{formatTime(mix.structure.totalDuration)}</div>
-          <div className="stat-label">Mix Duration</div>
-        </div>
-      </div>
-
-      {/* Duration Information */}
-      {mix.originalDurations && (
-        <div className="duration-info">
-          <h4>Duration Analysis</h4>
-          <div className="duration-grid">
-            <div className="duration-item">
-              <span className="duration-label">Song 1</span>
-              <span className="duration-value">{formatTime(mix.originalDurations.song1)}</span>
+      {/* Mix Analysis */}
+      {mix.analysis && (
+        <div className="mix-analysis">
+          <h4>🎛️ Mix Analysis</h4>
+          <div className="analysis-grid">
+            <div className="analysis-item">
+              <span className="analysis-label">Compatibility Score</span>
+              <span className="analysis-value">{mix.analysis.compatibilityScore}%</span>
             </div>
-            <div className="duration-item">
-              <span className="duration-label">Song 2</span>
-              <span className="duration-value">{formatTime(mix.originalDurations.song2)}</span>
+            <div className="analysis-item">
+              <span className="analysis-label">BPM Difference</span>
+              <span className="analysis-value">{mix.analysis.bpmDifference.toFixed(1)}</span>
             </div>
-            <div className="duration-item highlight">
-              <span className="duration-label">Mix Length</span>
-              <span className="duration-value">{formatTime(mix.originalDurations.average)}</span>
+            <div className="analysis-item">
+              <span className="analysis-label">Key Compatibility</span>
+              <span className="analysis-value">{mix.analysis.keyCompatibility}</span>
+            </div>
+            <div className="analysis-item">
+              <span className="analysis-label">Energy Balance</span>
+              <span className="analysis-value">{mix.analysis.energyBalance.toFixed(2)}</span>
             </div>
           </div>
-          <p className="duration-explanation">
-            The mix duration is calculated as the average of both songs' lengths for optimal flow.
-          </p>
         </div>
       )}
 
-      <div className="compatibility-details">
-        <h4>Mix Analysis</h4>
-        <p><strong>Overall Score:</strong> {getCompatibilityText(mix.compatibility.score)} ({mix.compatibility.score}%)</p>
-
-        {mix.compatibility.recommendations.length > 0 && (
-          <div className="recommendations">
-            <h5>Recommendations:</h5>
-            <ul>
-              {mix.compatibility.recommendations.map((rec, index) => (
-                <li key={index}>{rec}</li>
-              ))}
-            </ul>
+      {/* Mix Structure */}
+      {mix.mixStructure && (
+        <div className="mix-structure">
+          <h4>🎬 Mix Structure</h4>
+          <div className="structure-timeline">
+            {mix.mixStructure.sections.map((section, index) => (
+              <div key={index} className="structure-section">
+                <div className="section-header">
+                  <span className="section-name">{section.name}</span>
+                  <span className="section-time">
+                    {formatTime(section.start)} - {formatTime(section.end)}
+                  </span>
+                </div>
+                <div className="section-description">{section.description}</div>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
+      {/* Audio Controls */}
       <div className="audio-controls">
         <button
           className="control-btn"
@@ -174,15 +214,16 @@ const MixPlayer = ({ mix }) => {
           <div className="progress-bar">
             <div
               className="progress-fill"
-              style={{ width: `${(currentTime / mix.structure.totalDuration) * 100}%` }}
+              style={{ width: `${(currentTime / mix.duration) * 100}%` }}
             ></div>
           </div>
           <div className="time-display">
-            {formatTime(currentTime)} / {formatTime(30)}
+            {formatTime(currentTime)} / {formatTime(mix.duration)}
           </div>
         </div>
       </div>
 
+      {/* Volume Control */}
       <div className="volume-control">
         <span>Volume:</span>
         <input
@@ -195,53 +236,33 @@ const MixPlayer = ({ mix }) => {
           onChange={(e) => {
             const newVolume = parseFloat(e.target.value)
             setVolume(newVolume)
-            if (audioRef.current) {
-              audioRef.current.volume = newVolume
-            }
           }}
         />
         <span>{Math.round(volume * 100)}%</span>
       </div>
 
-      <button
-        className="waveform-toggle"
-        onClick={() => setShowWaveform(!showWaveform)}
-      >
-        {showWaveform ? 'Hide' : 'Show'} Waveform
-      </button>
-
-      {showWaveform && (
-        <div className="waveform-container">
-          <svg width="100%" height="100" viewBox={`0 0 ${mix.waveform.length * 2} 100`}>
-            {mix.waveform.map((point, index) => (
-              <rect
-                key={index}
-                x={index * 2}
-                y={50 - (point.amplitude * 40)}
-                width="1"
-                height={point.amplitude * 80}
-                fill="rgba(255, 255, 255, 0.6)"
-              />
-            ))}
-          </svg>
-        </div>
-      )}
-
-      <audio
-        ref={audioRef}
-        src={mix.audioUrl}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={() => {
-          setIsPlaying(false)
-          setCurrentTime(0)
-          if (progressInterval.current) {
-            clearInterval(progressInterval.current)
-          }
-        }}
-        onError={() => {
-          console.log('Audio preview not available - this is expected in demo mode')
-        }}
-      />
+      {/* Download Button */}
+      <div className="download-section">
+        <button
+          className="download-btn"
+          onClick={() => {
+            // Convert audio buffer to downloadable file
+            if (mix.audioBuffer) {
+              const audioData = mix.audioBuffer.getChannelData(0)
+              const wavBuffer = this.audioBufferToWav(mix.audioBuffer)
+              const blob = new Blob([wavBuffer], { type: 'audio/wav' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = 'dj-mix.wav'
+              a.click()
+              URL.revokeObjectURL(url)
+            }
+          }}
+        >
+          💾 Download Mix
+        </button>
+      </div>
     </div>
   )
 }
