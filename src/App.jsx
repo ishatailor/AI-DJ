@@ -1,25 +1,51 @@
-import React, { useState } from 'react'
-import LibrarySection from './components/SearchSection'
+import React, { useState, useEffect } from 'react'
+import FileUploadSection from './components/FileUploadSection'
 import LoadingSection from './components/LoadingSection'
 import MixPlayer from './components/MixPlayer'
-import { generateMix } from './services/mixService'
+import LocalAudioMixer from './services/localMixService'
 
 function App() {
-  const [selectedSongs, setSelectedSongs] = useState([null, null])
+  const [uploadedTracks, setUploadedTracks] = useState([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationProgress, setGenerationProgress] = useState(0)
   const [generatedMix, setGeneratedMix] = useState(null)
   const [error, setError] = useState(null)
+  const [audioMixer, setAudioMixer] = useState(null)
 
-  const handleSongSelect = (songIndex, song) => {
-    const newSelectedSongs = [...selectedSongs]
-    newSelectedSongs[songIndex] = song
-    setSelectedSongs(newSelectedSongs)
+  useEffect(() => {
+    // Initialize the audio mixer when component mounts
+    const initMixer = async () => {
+      const mixer = new LocalAudioMixer()
+      const success = await mixer.initialize()
+      if (success) {
+        setAudioMixer(mixer)
+      } else {
+        setError('Failed to initialize audio mixer')
+      }
+    }
+
+    initMixer()
+
+    // Cleanup on unmount
+    return () => {
+      if (audioMixer) {
+        audioMixer.dispose()
+      }
+    }
+  }, [])
+
+  const handleTracksSelected = (tracks) => {
+    setUploadedTracks(tracks || [])
+    setError(null)
+  }
+
+  const handleError = (errorMessage) => {
+    setError(errorMessage)
   }
 
   const handleGenerateMix = async () => {
-    if (!selectedSongs[0] || !selectedSongs[1]) {
-      setError('Please select two songs first')
+    if (uploadedTracks.length !== 2 || !audioMixer) {
+      setError('Please upload two audio files and ensure audio mixer is ready')
       return
     }
 
@@ -28,6 +54,7 @@ function App() {
     setError(null)
 
     try {
+      // Simulate progress
       const progressInterval = setInterval(() => {
         setGenerationProgress(prev => {
           if (prev >= 90) {
@@ -36,54 +63,74 @@ function App() {
           }
           return prev + 10
         })
-      }, 500)
+      }, 300)
 
-      const mix = await generateMix(selectedSongs[0], selectedSongs[1])
+      // Generate the mix using local audio files
+      const mix = await audioMixer.generateMix(uploadedTracks[0], uploadedTracks[1], 30)
 
       clearInterval(progressInterval)
       setGenerationProgress(100)
+      
       setTimeout(() => {
         setIsGenerating(false)
         setGeneratedMix(mix)
       }, 500)
 
     } catch (err) {
-      setError(err.message)
+      console.error('Mix generation error:', err)
+      setError(err.message || 'Failed to generate mix')
       setIsGenerating(false)
     }
   }
 
-  const canGenerate = selectedSongs[0] && selectedSongs[1] && !isGenerating
+  const canGenerate = uploadedTracks.length === 2 && !isGenerating && audioMixer
 
   return (
     <div className="container">
       <div className="header">
-        <h1>AI DJ Mixer</h1>
-        <p>Create amazing mixes from previewable Spotify tracks</p>
+        <h1>🎵 Local AI DJ Mixer</h1>
+        <p>Upload your own audio files and create amazing DJ mixes</p>
       </div>
 
-      <LibrarySection 
-        selectedSongs={selectedSongs}
-        onSongSelect={handleSongSelect}
+      <FileUploadSection 
+        onTracksSelected={handleTracksSelected}
+        onError={handleError}
       />
 
-      <button 
-        className="generate-btn"
-        onClick={handleGenerateMix}
-        disabled={!canGenerate}
-      >
-        {isGenerating ? 'Generating Mix...' : 'Generate Mix'}
-      </button>
+      {uploadedTracks.length === 2 && (
+        <div className="mix-controls">
+          <button 
+            className="generate-btn"
+            onClick={handleGenerateMix}
+            disabled={!canGenerate}
+          >
+            {isGenerating ? '🎬 Generating Mix...' : '🎵 Generate Mix'}
+          </button>
+          
+          <div className="track-info-display">
+            <h3>Selected Tracks:</h3>
+            <div className="track-pair">
+              <div className="track-card">
+                <span className="track-number">1</span>
+                <div className="track-details">
+                  <strong>{uploadedTracks[0]?.name}</strong>
+                  <small>BPM: {uploadedTracks[0]?.tempo} | Key: {uploadedTracks[0]?.key}</small>
+                </div>
+              </div>
+              <div className="track-card">
+                <span className="track-number">2</span>
+                <div className="track-details">
+                  <strong>{uploadedTracks[1]?.name}</strong>
+                  <small>BPM: {uploadedTracks[1]?.tempo} | Key: {uploadedTracks[1]?.key}</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
-        <div style={{ 
-          textAlign: 'center', 
-          color: '#ff6b6b', 
-          margin: '1rem 0',
-          padding: '1rem',
-          background: 'rgba(255, 107, 107, 0.1)',
-          borderRadius: '12px'
-        }}>
+        <div className="error-message">
           {error}
         </div>
       )}
