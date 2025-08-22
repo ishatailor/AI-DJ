@@ -308,7 +308,7 @@ const MixPlayer = ({ mix }) => {
       {/* Mix Structure */}
       {mix.mixStructure && (
         <div className="mix-structure">
-          <h4>🎬 Natural Mix Structure</h4>
+          <h4>🎬 Balanced Mix Structure (Zedd Style - 128 BPM)</h4>
           <div className="structure-timeline">
             {mix.mixStructure.sections.map((section, index) => (
               <div key={index} className={`structure-section ${section.type}`}>
@@ -325,9 +325,34 @@ const MixPlayer = ({ mix }) => {
                      section.track === 'track2' ? '🎵 Track 2' : '🎵 Both Tracks'}
                   </span>
                   <span className="section-type">{section.type}</span>
+                  {section.bars && (
+                    <span className="section-bars">{section.bars} bars</span>
+                  )}
                 </div>
               </div>
             ))}
+          </div>
+          
+          <div className="structure-summary">
+            <h5>📊 Mix Balance Summary</h5>
+            <div className="balance-grid">
+              <div className="balance-item">
+                <span className="balance-label">Track 1 (Intro → Drop):</span>
+                <span className="balance-value">48s (40%)</span>
+              </div>
+              <div className="balance-item">
+                <span className="balance-label">Track 2 (Build-up → Outro):</span>
+                <span className="balance-value">48s (40%)</span>
+              </div>
+              <div className="balance-item">
+                <span className="balance-label">Both Tracks (Transition):</span>
+                <span className="balance-value">24s (20%)</span>
+              </div>
+              <div className="balance-item">
+                <span className="balance-label">Total Duration:</span>
+                <span className="balance-value">120s (128 bars)</span>
+              </div>
+            </div>
           </div>
         </div>
       )}

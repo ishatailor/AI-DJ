@@ -36,13 +36,13 @@ class LocalAudioMixer {
     }
 
     try {
-      console.log('🎵 Starting advanced local mix generation...')
+      console.log('🎵 Starting balanced Zedd-style mix generation...')
       console.log('📊 Track 1:', track1.name, 'Duration:', track1.duration)
       console.log('📊 Track 2:', track2.name, 'Duration:', track2.duration)
 
-      // Calculate mix duration as average of both songs for equal emphasis
-      const mixDuration = durationSec || Math.round((track1.duration + track2.duration) / 2)
-      console.log('🎯 Mix duration (average):', mixDuration, 'seconds')
+      // Use exact demo structure: 120 seconds (128 bars at 128 BPM)
+      const mixDuration = 120
+      console.log('🎯 Mix duration (demo structure):', mixDuration, 'seconds (128 bars at 128 BPM)')
 
       // Create offline context for rendering
       const offlineCtx = new OfflineAudioContext(
@@ -59,25 +59,26 @@ class LocalAudioMixer {
       const mixingPoints = await this.findOptimalMixingPoints(track1, track2, mixDuration, analysis)
       console.log('🎯 Optimal mixing points found:', mixingPoints)
 
-      // Generate intelligent mix structure with natural crossfades
-      const mixStructure = this.generateNaturalMixStructure(track1, track2, mixDuration, mixingPoints, analysis)
-      console.log('🎛️ Natural mix structure:', mixStructure)
+      // Generate balanced mix structure following demo exactly
+      const mixStructure = this.generateBalancedMixStructure(track1, track2, mixDuration, mixingPoints, analysis)
+      console.log('🎛️ Balanced mix structure:', mixStructure)
 
-      // Create and connect audio sources with intelligent song selection
+      // Create and connect audio sources with balanced song selection
       const source1 = offlineCtx.createBufferSource()
       const source2 = offlineCtx.createBufferSource()
       
-      // Select the best parts of each song for mixing
-      const track1Selection = this.selectBestSongSection(track1, mixStructure.track1Duration, analysis)
-      const track2Selection = this.selectBestSongSection(track2, mixStructure.track2Duration, analysis)
+      // Select balanced sections: Track 1 from start, Track 2 from later (no intro)
+      const track1Selection = this.selectBalancedTrack1Section(track1, mixStructure.track1Duration, analysis)
+      const track2Selection = this.selectBalancedTrack2Section(track2, mixStructure.track2Duration, analysis)
       
       source1.buffer = track1Selection.buffer
       source2.buffer = track2Selection.buffer
 
-      console.log('🎵 Selected sections - Track 1:', track1Selection.startTime, 'to', track1Selection.startTime + track1Selection.duration)
-      console.log('🎵 Selected sections - Track 2:', track2Selection.startTime, 'to', track2Selection.startTime + track2Selection.duration)
+      console.log('🎵 Balanced sections selected:')
+      console.log('   Track 1:', track1Selection.startTime, 'to', track1Selection.startTime + track1Selection.duration, '(', track1Selection.reason, ')')
+      console.log('   Track 2:', track2Selection.startTime, 'to', track2Selection.startTime + track2Selection.duration, '(', track2Selection.reason, ')')
 
-      // Create advanced processing chains with vocal separation
+      // Create advanced processing chains
       const chain1 = this.createAdvancedTrackChain(offlineCtx, 'track1', mixingPoints)
       const chain2 = this.createAdvancedTrackChain(offlineCtx, 'track2', mixingPoints)
 
@@ -89,17 +90,17 @@ class LocalAudioMixer {
       chain1.output.connect(offlineCtx.destination)
       chain2.output.connect(offlineCtx.destination)
 
-      // Apply natural crossfade automation with vocal overlays
-      this.applyNaturalCrossfadeAutomation(offlineCtx, source1, source2, chain1, chain2, mixStructure, mixingPoints, track1Selection, track2Selection)
+      // Apply balanced automation following demo structure
+      this.applyBalancedAutomation(offlineCtx, source1, source2, chain1, chain2, mixStructure, mixingPoints, track1Selection, track2Selection)
 
       // Start playback with calculated offsets
       source1.start(0, track1Selection.startTime, track1Selection.duration)
       source2.start(mixStructure.track2Start, track2Selection.startTime, track2Selection.duration)
 
       // Render the mix
-      console.log('🎬 Rendering natural crossfade mix...')
+      console.log('🎬 Rendering balanced Zedd-style mix...')
       const renderedBuffer = await offlineCtx.startRendering()
-      console.log('✅ Natural crossfade mix rendered successfully')
+      console.log('✅ Balanced mix rendered successfully')
 
       return {
         audioBuffer: renderedBuffer,
@@ -118,6 +119,53 @@ class LocalAudioMixer {
       console.error('❌ Error generating mix:', error)
       throw error
     }
+  }
+
+  async playMix(audioBuffer) {
+    if (!this.audioContext) {
+      throw new Error('AudioMixer not initialized')
+    }
+
+    try {
+      const source = this.audioContext.createBufferSource()
+      source.buffer = audioBuffer
+      
+      source.connect(this.masterGain)
+      source.start(0)
+      
+      console.log('🎵 Playing mix...')
+      return source
+    } catch (error) {
+      console.error('❌ Error playing mix:', error)
+      throw error
+    }
+  }
+
+  stopMix() {
+    if (this.audioContext) {
+      this.audioContext.suspend()
+    }
+  }
+
+  resumeMix() {
+    if (this.audioContext) {
+      this.audioContext.resume()
+    }
+  }
+
+  setMasterVolume(volume) {
+    if (this.masterGain) {
+      this.masterGain.gain.value = Math.max(0, Math.min(1, volume))
+    }
+  }
+
+  dispose() {
+    if (this.audioContext) {
+      this.audioContext.close()
+      this.audioContext = null
+    }
+    this.masterGain = null
+    this.compressor = null
   }
 
   createTrackChain(ctx, trackType) {
@@ -196,110 +244,243 @@ class LocalAudioMixer {
     return Math.max(0, score)
   }
 
-  generateBalancedMixStructure(track1, track2, durationSec, analysis) {
+  generateBalancedMixStructure(track1, track2, durationSec, mixingPoints, analysis) {
+    // Follow exact demo structure: 120 seconds, 128 bars at 128 BPM
     const structure = {
       duration: durationSec,
-      track1Duration: durationSec / 2, // Equal emphasis on both tracks
-      track2Duration: durationSec / 2,
+      track1Duration: 48, // Track 1 gets 48 seconds (40%)
+      track2Duration: 48, // Track 2 gets 48 seconds (40%)
       track1Start: 0,
-      track2Start: 0,
-      crossfadeStart: 0,
-      crossfadeDuration: 0,
+      track2Start: 48, // Track 2 starts at 48 seconds (after Track 1's main section)
+      crossfadeStart: 40, // Start crossfade 8 seconds before Track 2 fully takes over
+      crossfadeDuration: 16, // 16 seconds of crossfade
+      vocalOverlayStart: 44, // Vocal overlay during crossfade
+      vocalOverlayDuration: 8, // 8 seconds of vocal layering
+      buildUpSection: null,
+      dropSection: null,
+      breakdownSection: null,
       sections: []
     }
 
-    // Calculate optimal timing for equal emphasis
-    if (analysis.compatibilityScore > 70) {
-      // High compatibility: longer crossfade for smooth blend
-      structure.track2Start = durationSec * 0.3
-      structure.crossfadeStart = durationSec * 0.4
-      structure.crossfadeDuration = durationSec * 0.4
-    } else if (analysis.compatibilityScore > 40) {
-      // Medium compatibility: moderate overlap
-      structure.track2Start = durationSec * 0.35
-      structure.crossfadeStart = durationSec * 0.45
-      structure.crossfadeDuration = durationSec * 0.35
-    } else {
-      // Low compatibility: minimal overlap to avoid clashes
-      structure.track2Start = durationSec * 0.45
-      structure.crossfadeStart = durationSec * 0.55
-      structure.crossfadeDuration = durationSec * 0.25
-    }
-
-    // Define mix sections with equal emphasis
+    // Create exact demo structure sections
     structure.sections = [
-      { 
-        name: 'intro', 
-        start: 0, 
-        end: structure.track2Start, 
-        description: `Track 1 focus (${Math.round((structure.track2Start / durationSec) * 100)}% of mix)`,
-        track: 'track1'
+      // Track 1 Section (0-48 seconds)
+      {
+        name: 'intro',
+        start: 0,
+        end: 16,
+        description: 'Track 1 intro (16 bars = 8 seconds)',
+        track: 'track1',
+        type: 'solo',
+        bars: 16
       },
-      { 
-        name: 'transition', 
-        start: structure.track2Start, 
-        end: structure.crossfadeStart, 
-        description: 'Track 2 enters gradually',
-        track: 'both'
+      {
+        name: 'build-up-1',
+        start: 16,
+        end: 32,
+        description: 'Track 1 build-up (16 bars = 8 seconds)',
+        track: 'track1',
+        type: 'build-up',
+        bars: 16
       },
-      { 
-        name: 'crossfade', 
-        start: structure.crossfadeStart, 
-        end: structure.crossfadeStart + structure.crossfadeDuration, 
-        description: 'Both tracks blend equally',
-        track: 'both'
+      {
+        name: 'drop-1',
+        start: 32,
+        end: 48,
+        description: 'Track 1 first drop (16 bars = 8 seconds)',
+        track: 'track1',
+        type: 'drop',
+        bars: 16
       },
-      { 
-        name: 'outro', 
-        start: structure.crossfadeStart + structure.crossfadeDuration, 
-        end: durationSec, 
-        description: `Track 2 focus (${Math.round(((durationSec - (structure.crossfadeStart + structure.crossfadeDuration)) / durationSec) * 100)}% of mix)`,
-        track: 'track2'
+      
+      // Transition Section (48-64 seconds)
+      {
+        name: 'transition',
+        start: 48,
+        end: 64,
+        description: 'Track 2 enters, Track 1 fades (16 bars = 8 seconds)',
+        track: 'both',
+        type: 'crossfade',
+        bars: 16
+      },
+      
+      // Track 2 Section (64-112 seconds)
+      {
+        name: 'build-up-2',
+        start: 64,
+        end: 80,
+        description: 'Track 2 build-up (16 bars = 8 seconds)',
+        track: 'track2',
+        type: 'build-up',
+        bars: 16
+      },
+      {
+        name: 'drop-2',
+        start: 80,
+        end: 96,
+        description: 'Track 2 main drop (16 bars = 8 seconds)',
+        track: 'track2',
+        type: 'drop',
+        bars: 16
+      },
+      {
+        name: 'breakdown',
+        start: 96,
+        end: 104,
+        description: 'Track 2 breakdown (8 bars = 4 seconds)',
+        track: 'track2',
+        type: 'breakdown',
+        bars: 8
+      },
+      {
+        name: 'final-build',
+        start: 104,
+        end: 112,
+        description: 'Final build-up (8 bars = 4 seconds)',
+        track: 'track2',
+        type: 'build-up',
+        bars: 8
+      },
+      
+      // Final Section (112-120 seconds)
+      {
+        name: 'final-drop',
+        start: 112,
+        end: 120,
+        description: 'Epic final drop with both tracks (8 bars = 4 seconds)',
+        track: 'both',
+        type: 'final-drop',
+        bars: 8
       }
     ]
 
     return structure
   }
 
-  selectBestSongSection(track, targetDuration, analysis) {
+  selectBalancedTrack1Section(track, targetDuration, analysis) {
     const trackDuration = track.audioBuffer.duration
-    const sampleRate = track.audioBuffer.sampleRate
     
-    // If track is shorter than target, use the whole track
+    // Track 1: Start from beginning (intro, build-up, drop)
+    // This gives the mix its foundation and identity
     if (trackDuration <= targetDuration) {
       return {
         buffer: track.audioBuffer,
         startTime: 0,
         duration: trackDuration,
-        reason: 'Full track used (shorter than target)'
+        reason: 'Full track used from beginning (shorter than target)'
       }
     }
 
-    // For longer tracks, select the most compatible section
-    const possibleSections = this.findCompatibleSections(track, targetDuration, analysis)
-    
-    if (possibleSections.length === 0) {
-      // Fallback: use middle section
-      const startTime = (trackDuration - targetDuration) / 2
-      return {
-        buffer: track.audioBuffer,
-        startTime: startTime,
-        duration: targetDuration,
-        reason: 'Middle section (fallback)'
-      }
-    }
-
-    // Select the section with highest compatibility score
-    const bestSection = possibleSections.reduce((best, current) => 
-      current.compatibilityScore > best.compatibilityScore ? current : best
-    )
-
+    // For longer tracks, use the beginning section
+    // This ensures we get the intro, build-up, and first drop
     return {
       buffer: track.audioBuffer,
-      startTime: bestSection.startTime,
+      startTime: 0,
       duration: targetDuration,
-      reason: `Best compatible section (score: ${bestSection.compatibilityScore})`
+      reason: 'Beginning section (intro → build-up → drop)'
     }
+  }
+
+  selectBalancedTrack2Section(track, targetDuration, analysis) {
+    const trackDuration = track.audioBuffer.duration
+    
+    // Track 2: Skip intro, start from build-up or verse
+    // This prevents duplicate beginnings and creates variety
+    
+    if (trackDuration <= targetDuration) {
+      // If track is shorter, use it all but start from a later point
+      const skipIntro = Math.min(trackDuration * 0.2, 8) // Skip first 20% or 8 seconds
+      const availableDuration = trackDuration - skipIntro
+      
+      if (availableDuration >= targetDuration) {
+        return {
+          buffer: track.audioBuffer,
+          startTime: skipIntro,
+          duration: targetDuration,
+          reason: 'Track 2 from build-up (skipped intro)'
+        }
+      } else {
+        return {
+          buffer: track.audioBuffer,
+          startTime: skipIntro,
+          duration: availableDuration,
+          reason: 'Track 2 from build-up (full remaining duration)'
+        }
+      }
+    }
+
+    // For longer tracks, find the best section starting after intro
+    const skipIntro = Math.min(trackDuration * 0.2, 12) // Skip first 20% or 12 seconds
+    const remainingDuration = trackDuration - skipIntro
+    
+    if (remainingDuration >= targetDuration) {
+      // Find the best section after the intro
+      const bestSection = this.findBestTrack2Section(track, skipIntro, targetDuration, analysis)
+      
+      return {
+        buffer: track.audioBuffer,
+        startTime: bestSection.startTime,
+        duration: targetDuration,
+        reason: `Best section after intro: ${bestSection.reason}`
+      }
+    } else {
+      // Use all remaining duration after intro
+      return {
+        buffer: track.audioBuffer,
+        startTime: skipIntro,
+        duration: remainingDuration,
+        reason: 'Full remaining duration after intro'
+      }
+    }
+  }
+
+  findBestTrack2Section(track, startAfter, targetDuration, analysis) {
+    const trackDuration = track.audioBuffer.duration
+    const sections = []
+    const stepSize = Math.max(1, targetDuration / 4) // Check every quarter of target duration
+    
+    for (let startTime = startAfter; startTime <= trackDuration - targetDuration; startTime += stepSize) {
+      const endTime = startTime + targetDuration
+      
+      // Analyze this section's characteristics
+      const sectionAnalysis = this.analyzeSongSection(track, startTime, endTime)
+      
+      // Calculate compatibility with the other track
+      const compatibilityScore = this.calculateSectionCompatibility(sectionAnalysis, analysis)
+      
+      // Bonus for sections that start with energy (build-up, verse, etc.)
+      const energyBonus = sectionAnalysis.intensity > 0.8 ? 20 : 0
+      const finalScore = compatibilityScore + energyBonus
+      
+      sections.push({
+        startTime,
+        endTime,
+        compatibilityScore: finalScore,
+        analysis: sectionAnalysis,
+        reason: this.describeSectionType(sectionAnalysis)
+      })
+    }
+    
+    // Return the section with highest score
+    if (sections.length > 0) {
+      return sections.reduce((best, current) => 
+        current.compatibilityScore > best.compatibilityScore ? current : best
+      )
+    }
+    
+    // Fallback: use section starting after intro
+    return {
+      startTime: startAfter,
+      endTime: startAfter + targetDuration,
+      compatibilityScore: 50,
+      reason: 'Fallback: section after intro'
+    }
+  }
+
+  describeSectionType(sectionAnalysis) {
+    if (sectionAnalysis.intensity > 1.1) return 'High energy (drop/chorus)'
+    if (sectionAnalysis.intensity > 0.9) return 'Medium energy (verse/build-up)'
+    return 'Lower energy (breakdown/verse)'
   }
 
   findCompatibleSections(track, targetDuration, analysis) {
@@ -356,81 +537,104 @@ class LocalAudioMixer {
     return Math.max(0, score)
   }
 
-  applyBalancedMixAutomation(ctx, source1, source2, chain1, chain2, mixStructure, track1Selection, track2Selection) {
+  applyBalancedAutomation(ctx, source1, source2, chain1, chain2, mixStructure, mixingPoints, track1Selection, track2Selection) {
     const currentTime = ctx.currentTime
 
-    // Track 1 automation - equal emphasis
+    // Track 1 automation with Zedd-style progressive house techniques
     chain1.gain.gain.setValueAtTime(1, currentTime)
-    chain1.gain.gain.linearRampToValueAtTime(0.9, currentTime + mixStructure.track2Start)
-    chain1.gain.gain.linearRampToValueAtTime(0.5, currentTime + mixStructure.crossfadeStart)
+    
+    // Handle build-up section if present
+    if (mixStructure.buildUpSection) {
+      // Gradual energy increase during build-up
+      chain1.gain.gain.linearRampToValueAtTime(1.2, currentTime + mixStructure.buildUpSection.start)
+      chain1.gain.gain.linearRampToValueAtTime(1.4, currentTime + mixStructure.buildUpSection.start + mixStructure.buildUpSection.duration)
+    }
+    
+    // Transition to track 2
+    chain1.gain.gain.linearRampToValueAtTime(0.95, currentTime + mixStructure.track2Start)
+    chain1.gain.gain.linearRampToValueAtTime(0.7, currentTime + mixStructure.crossfadeStart)
+    chain1.gain.gain.linearRampToValueAtTime(0.3, currentTime + mixStructure.crossfadeStart + mixStructure.crossfadeDuration * 0.5)
     chain1.gain.gain.linearRampToValueAtTime(0, currentTime + mixStructure.crossfadeStart + mixStructure.crossfadeDuration)
 
-    // Track 2 automation - equal emphasis
+    // Track 2 automation with Zedd-style techniques
     chain2.gain.gain.setValueAtTime(0, currentTime + mixStructure.track2Start)
-    chain2.gain.gain.linearRampToValueAtTime(0.7, currentTime + mixStructure.track2Start + 1)
-    chain2.gain.gain.linearRampToValueAtTime(0.5, currentTime + mixStructure.crossfadeStart)
+    chain2.gain.gain.linearRampToValueAtTime(0.6, currentTime + mixStructure.track2Start + 1)
+    chain2.gain.gain.linearRampToValueAtTime(0.7, currentTime + mixStructure.crossfadeStart)
+    chain2.gain.gain.linearRampToValueAtTime(0.8, currentTime + mixStructure.crossfadeStart + mixStructure.crossfadeDuration * 0.5)
     chain2.gain.gain.linearRampToValueAtTime(1, currentTime + mixStructure.crossfadeStart + mixStructure.crossfadeDuration)
 
-    // Apply tempo adjustment if needed for better compatibility
+    // Apply tempo adjustment for better compatibility
     if (Math.abs(track1Selection.duration - track2Selection.duration) > 0.1) {
       const tempoRatio = track1Selection.duration / track2Selection.duration
       source2.playbackRate.value = tempoRatio
       console.log('🎵 Applied tempo adjustment for compatibility:', tempoRatio)
     }
 
-    // Add subtle EQ adjustments for better blend
+    // Dynamic EQ adjustments during crossfade (Zedd-style frequency management)
     if (mixStructure.crossfadeDuration > 0) {
       // High-pass filter on track 2 during crossfade to avoid low-end clash
       chain2.eq.frequency.setValueAtTime(120, currentTime + mixStructure.crossfadeStart)
       chain2.eq.frequency.linearRampToValueAtTime(80, currentTime + mixStructure.crossfadeStart + mixStructure.crossfadeDuration)
-    }
-  }
-
-  async playMix(audioBuffer) {
-    if (!this.audioContext) {
-      throw new Error('AudioMixer not initialized')
-    }
-
-    try {
-      const source = this.audioContext.createBufferSource()
-      source.buffer = audioBuffer
       
-      source.connect(this.masterGain)
-      source.start(0)
+      // Boost mid-range on track 1 during crossfade for vocal clarity
+      chain1.eq.frequency.setValueAtTime(1000, currentTime + mixStructure.crossfadeStart)
+      chain1.eq.gain.setValueAtTime(0, currentTime + mixStructure.crossfadeStart)
+      chain1.eq.gain.linearRampToValueAtTime(3, currentTime + mixStructure.crossfadeStart + mixStructure.crossfadeDuration * 0.5)
+      chain1.eq.gain.linearRampToValueAtTime(0, currentTime + mixStructure.crossfadeStart + mixStructure.crossfadeDuration)
+    }
+
+    // Build-up section automation
+    if (mixStructure.buildUpSection) {
+      // Increase bass and energy during build-up
+      chain1.eq.frequency.setValueAtTime(100, currentTime + mixStructure.buildUpSection.start)
+      chain1.eq.gain.setValueAtTime(0, currentTime + mixStructure.buildUpSection.start)
+      chain1.eq.gain.linearRampToValueAtTime(2, currentTime + mixStructure.buildUpSection.start + mixStructure.buildUpSection.duration)
       
-      console.log('🎵 Playing mix...')
-      return source
-    } catch (error) {
-      console.error('❌ Error playing mix:', error)
-      throw error
+      // Add compression for build-up intensity
+      chain1.compressor.threshold.setValueAtTime(-20, currentTime + mixStructure.buildUpSection.start)
+      chain1.compressor.threshold.linearRampToValueAtTime(-15, currentTime + mixStructure.buildUpSection.start + mixStructure.buildUpSection.duration)
     }
-  }
 
-  stopMix() {
-    if (this.audioContext) {
-      this.audioContext.suspend()
+    // Breakdown section automation
+    if (mixStructure.breakdownSection) {
+      // Reduce energy during breakdown
+      chain1.gain.gain.linearRampToValueAtTime(0.6, currentTime + mixStructure.breakdownSection.start)
+      chain1.gain.gain.linearRampToValueAtTime(0.8, currentTime + mixStructure.breakdownSection.start + mixStructure.breakdownSection.duration)
+      
+      // High-pass filter to create space
+      chain1.eq.frequency.setValueAtTime(200, currentTime + mixStructure.breakdownSection.start)
+      chain1.eq.frequency.linearRampToValueAtTime(100, currentTime + mixStructure.breakdownSection.start + mixStructure.breakdownSection.duration)
     }
-  }
 
-  resumeMix() {
-    if (this.audioContext) {
-      this.audioContext.resume()
+    // Vocal overlay automation with Zedd-style vocal layering
+    if (mixStructure.vocalOverlayDuration > 0) {
+      // Boost vocals on track 1 during overlay
+      chain1.eq.gain.setValueAtTime(3, currentTime + mixStructure.vocalOverlayStart)
+      chain1.eq.gain.linearRampToValueAtTime(0, currentTime + mixStructure.vocalOverlayStart + mixStructure.vocalOverlayDuration)
+      
+      // Reduce vocals on track 2 during overlay, keep instrumental
+      chain2.eq.gain.setValueAtTime(-6, currentTime + mixStructure.vocalOverlayStart)
+      chain2.eq.gain.linearRampToValueAtTime(0, currentTime + mixStructure.vocalOverlayStart + mixStructure.vocalOverlayDuration)
+      
+      // Add subtle reverb to vocals for Zedd-style production
+      // Note: In a real implementation, you'd add reverb nodes
+      console.log('🎤 Applied Zedd-style vocal layering automation')
     }
-  }
 
-  setMasterVolume(volume) {
-    if (this.masterGain) {
-      this.masterGain.gain.value = Math.max(0, Math.min(1, volume))
+    // Master compression automation for professional sound
+    if (this.compressor) {
+      // Increase compression during high-energy sections
+      if (mixStructure.buildUpSection) {
+        this.compressor.threshold.setValueAtTime(-24, currentTime + mixStructure.buildUpSection.start)
+        this.compressor.threshold.linearRampToValueAtTime(-20, currentTime + mixStructure.buildUpSection.start + mixStructure.buildUpSection.duration)
+      }
+      
+      // Reduce compression during breakdown for dynamic contrast
+      if (mixStructure.breakdownSection) {
+        this.compressor.threshold.setValueAtTime(-20, currentTime + mixStructure.breakdownSection.start)
+        this.compressor.threshold.linearRampToValueAtTime(-18, currentTime + mixStructure.breakdownSection.start + mixStructure.breakdownSection.duration)
+      }
     }
-  }
-
-  dispose() {
-    if (this.audioContext) {
-      this.audioContext.close()
-      this.audioContext = null
-    }
-    this.masterGain = null
-    this.compressor = null
   }
 
   async findOptimalMixingPoints(track1, track2, mixDuration, analysis) {
@@ -881,168 +1085,6 @@ class LocalAudioMixer {
     }
     
     return null
-  }
-
-  generateNaturalMixStructure(track1, track2, durationSec, mixingPoints, analysis) {
-    const structure = {
-      duration: durationSec,
-      track1Duration: durationSec / 2,
-      track2Duration: durationSec / 2,
-      track1Start: 0,
-      track2Start: 0,
-      crossfadeStart: 0,
-      crossfadeDuration: 0,
-      vocalOverlayStart: 0,
-      vocalOverlayDuration: 0,
-      buildUpSection: null,
-      dropSection: null,
-      breakdownSection: null,
-      sections: []
-    }
-
-    // Use professional beat alignment if available, otherwise fall back to compatibility-based timing
-    if (mixingPoints.beatAlignment) {
-      structure.track2Start = mixingPoints.beatAlignment.optimalTrack2Start
-      
-      // Zedd-style structure: build-up → drop → breakdown → build-up → final drop
-      if (mixingPoints.buildUpPoints1.length > 0 && mixingPoints.dropPoints2.length > 0) {
-        // Create dramatic build-up to drop section
-        structure.buildUpSection = {
-          start: Math.max(0, structure.track2Start - 8), // 8 second build-up
-          duration: 8,
-          type: 'build-up-to-drop'
-        }
-      }
-      
-      if (mixingPoints.breakdownPoints1.length > 0 && mixingPoints.buildUpPoints2.length > 0) {
-        // Create breakdown to build-up section
-        structure.breakdownSection = {
-          start: Math.max(0, structure.track2Start - 4), // 4 second breakdown
-          duration: 4,
-          type: 'breakdown-to-build-up'
-        }
-      }
-      
-      // Start crossfade 2 seconds after track 2 enters for smooth transition
-      structure.crossfadeStart = structure.track2Start + 2
-      structure.crossfadeDuration = Math.min(durationSec * 0.4, 10) // Max 10 seconds or 40% of mix
-    } else {
-      // Fallback to compatibility-based timing
-      if (analysis.compatibilityScore > 70) {
-        structure.track2Start = durationSec * 0.3
-        structure.crossfadeStart = durationSec * 0.4
-        structure.crossfadeDuration = durationSec * 0.4
-      } else if (analysis.compatibilityScore > 40) {
-        structure.track2Start = durationSec * 0.35
-        structure.crossfadeStart = durationSec * 0.45
-        structure.crossfadeDuration = durationSec * 0.35
-      } else {
-        structure.track2Start = durationSec * 0.45
-        structure.crossfadeStart = durationSec * 0.55
-        structure.crossfadeDuration = durationSec * 0.25
-      }
-    }
-
-    // Add vocal overlay section if we have vocal peaks (Zedd style: vocal layering)
-    if (mixingPoints.vocalPeaks1.length > 0 && mixingPoints.vocalPeaks2.length > 0) {
-      // Place vocal overlay during the crossfade for maximum impact
-      structure.vocalOverlayStart = structure.crossfadeStart + structure.crossfadeDuration * 0.3
-      structure.vocalOverlayDuration = Math.min(durationSec * 0.25, 6) // Max 6 seconds or 25% of mix
-    }
-
-    // Create Zedd-style progressive house sections
-    structure.sections = []
-    
-    // Intro section (Track 1 focus)
-    if (structure.buildUpSection) {
-      structure.sections.push({
-        name: 'intro',
-        start: 0,
-        end: structure.buildUpSection.start,
-        description: `Track 1 focus (${Math.round((structure.buildUpSection.start / durationSec) * 100)}% of mix)`,
-        track: 'track1',
-        type: 'solo'
-      })
-      
-      // Build-up section
-      structure.sections.push({
-        name: 'build-up',
-        start: structure.buildUpSection.start,
-        end: structure.buildUpSection.start + structure.buildUpSection.duration,
-        description: 'Dramatic build-up to drop',
-        track: 'both',
-        type: 'build-up'
-      })
-    } else {
-      structure.sections.push({
-        name: 'intro',
-        start: 0,
-        end: structure.track2Start,
-        description: `Track 1 focus (${Math.round((structure.track2Start / durationSec) * 100)}% of mix)`,
-        track: 'track1',
-        type: 'solo'
-      })
-    }
-    
-    // Transition section
-    structure.sections.push({
-      name: 'transition',
-      start: structure.track2Start,
-      end: structure.crossfadeStart,
-      description: 'Track 2 enters at optimal point',
-      track: 'both',
-      type: 'layered'
-    })
-    
-    // Crossfade section
-    structure.sections.push({
-      name: 'crossfade',
-      start: structure.crossfadeStart,
-      end: structure.crossfadeStart + structure.crossfadeDuration,
-      description: 'Natural crossfade with vocal overlay',
-      track: 'both',
-      type: 'crossfade'
-    })
-    
-    // Vocal overlay section (if available)
-    if (structure.vocalOverlayDuration > 0) {
-      structure.sections.push({
-        name: 'vocal-overlay',
-        start: structure.vocalOverlayStart,
-        end: structure.vocalOverlayStart + structure.vocalOverlayDuration,
-        description: 'Vocals from one track over instrumental from other',
-        track: 'both',
-        type: 'vocal-overlay'
-      })
-    }
-    
-    // Breakdown section (if available)
-    if (structure.breakdownSection) {
-      structure.sections.push({
-        name: 'breakdown',
-        start: structure.breakdownSection.start,
-        end: structure.breakdownSection.start + structure.breakdownSection.duration,
-        description: 'Energy breakdown for contrast',
-        track: 'both',
-        type: 'breakdown'
-      })
-    }
-    
-    // Outro section
-    const outroStart = structure.vocalOverlayDuration > 0 
-      ? structure.vocalOverlayStart + structure.vocalOverlayDuration
-      : structure.crossfadeStart + structure.crossfadeDuration
-      
-    structure.sections.push({
-      name: 'outro',
-      start: outroStart,
-      end: durationSec,
-      description: `Track 2 focus (${Math.round(((durationSec - outroStart) / durationSec) * 100)}% of mix)`,
-      track: 'track2',
-      type: 'solo'
-    })
-
-    return structure
   }
 
   createAdvancedTrackChain(ctx, trackType, mixingPoints) {
