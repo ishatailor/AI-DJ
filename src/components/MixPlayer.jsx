@@ -176,7 +176,7 @@ const MixPlayer = ({ mix }) => {
       {/* Mixing Points Analysis */}
       {mix.mixingPoints && (
         <div className="mixing-points">
-          <h4>🎯 Advanced Mixing Points</h4>
+          <h4>🎯 Advanced Mixing Points (Zedd Style)</h4>
           <div className="points-grid">
             <div className="point-category">
               <h5>🎵 Bass Drops</h5>
@@ -228,16 +228,76 @@ const MixPlayer = ({ mix }) => {
               </div>
             </div>
 
+            <div className="point-category">
+              <h5>🚀 Build-Up Points</h5>
+              <div className="point-item">
+                <span>Track 1:</span>
+                <span className="point-value">
+                  {mix.mixingPoints.buildUpPoints1.length > 0 
+                    ? mix.mixingPoints.buildUpPoints1.map((point, i) => 
+                        `${formatTime(point.time)}${i < mix.mixingPoints.buildUpPoints1.length - 1 ? ', ' : ''}`
+                      ).join('')
+                    : 'None detected'
+                  }
+                </span>
+              </div>
+              <div className="point-item">
+                <span>Track 2:</span>
+                <span className="point-value">
+                  {mix.mixingPoints.buildUpPoints2.length > 0 
+                    ? mix.mixingPoints.buildUpPoints2.map((point, i) => 
+                        `${formatTime(point.time)}${i < mix.mixingPoints.buildUpPoints2.length - 1 ? ', ' : ''}`
+                      ).join('')
+                    : 'None detected'
+                  }
+                </span>
+              </div>
+            </div>
+
+            <div className="point-category">
+              <h5>💥 Drop Points</h5>
+              <div className="point-item">
+                <span>Track 1:</span>
+                <span className="point-value">
+                  {mix.mixingPoints.dropPoints1.length > 0 
+                    ? mix.mixingPoints.dropPoints1.map((point, i) => 
+                        `${formatTime(point.time)}${i < mix.mixingPoints.dropPoints1.length - 1 ? ', ' : ''}`
+                      ).join('')
+                    : 'None detected'
+                  }
+                </span>
+              </div>
+              <div className="point-item">
+                <span>Track 2:</span>
+                <span className="point-value">
+                  {mix.mixingPoints.dropPoints2.length > 0 
+                    ? mix.mixingPoints.dropPoints2.map((point, i) => 
+                        `${formatTime(point.time)}${i < mix.mixingPoints.dropPoints2.length - 1 ? ', ' : ''}`
+                      ).join('')
+                    : 'None detected'
+                  }
+                </span>
+              </div>
+            </div>
+
             {mix.mixingPoints.beatAlignment && (
               <div className="point-category">
                 <h5>🥁 Beat Alignment</h5>
                 <div className="point-item">
                   <span>Type:</span>
-                  <span className="point-value">{mix.mixingPoints.beatAlignment.alignment}</span>
+                  <span className="point-value">{mix.mixingPoints.beatAlignment.type}</span>
+                </div>
+                <div className="point-item">
+                  <span>Score:</span>
+                  <span className="point-value">{mix.mixingPoints.beatAlignment.score}/100</span>
                 </div>
                 <div className="point-item">
                   <span>Optimal Start:</span>
                   <span className="point-value">{formatTime(mix.mixingPoints.beatAlignment.optimalTrack2Start)}</span>
+                </div>
+                <div className="point-item">
+                  <span>Description:</span>
+                  <span className="point-value">{mix.mixingPoints.beatAlignment.description}</span>
                 </div>
               </div>
             )}

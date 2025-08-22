@@ -265,6 +265,24 @@
   border-color: rgba(111, 66, 193, 0.3);
 }
 
+.structure-section.build-up .track-indicator {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  border-color: rgba(255, 193, 7, 0.3);
+}
+
+.structure-section.breakdown .track-indicator {
+  background: rgba(108, 117, 125, 0.2);
+  color: #6c757d;
+  border-color: rgba(108, 117, 125, 0.3);
+}
+
+.structure-section.drop .track-indicator {
+  background: rgba(220, 53, 69, 0.2);
+  color: #dc3545;
+  border-color: rgba(220, 53, 69, 0.3);
+}
+
 /* Audio Controls */
 .audio-controls {
   display: flex;
