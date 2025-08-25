@@ -32,19 +32,7 @@ An AI-powered DJ application that generates seamless mixes from two Spotify trac
    npm install
    ```
 
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Edit `.env` file with your Spotify credentials:
-   ```env
-   SPOTIFY_CLIENT_ID=your_spotify_client_id
-   SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
-   PORT=5000
-   ```
-
-4. **Start the development servers**
+3**Start the development servers**
    
    In one terminal, start the backend:
    ```bash
@@ -56,14 +44,14 @@ An AI-powered DJ application that generates seamless mixes from two Spotify trac
    npm run dev
    ```
 
-5. **Open your browser**
+4**Open your browser**
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:5000
 
 ## 🎯 How It Works
 
 ### 1. Song Selection
-- Search for two songs using the Spotify search API
+- Upload for two songs
 - View track details including album art, artist, and duration
 - Select tracks for mixing
 
@@ -93,7 +81,6 @@ An AI-powered DJ application that generates seamless mixes from two Spotify trac
 ### Backend
 - **Express.js** server with RESTful API
 - **CORS** enabled for cross-origin requests
-- **Mock data** for demonstration purposes
 - **Modular architecture** for easy extension
 
 ### AI Mixing Algorithm
