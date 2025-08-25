@@ -150,7 +150,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- Spotify Web API for music data
 - Web Audio API for audio processing
 - React community for the amazing framework
 - Music theory resources for mixing algorithms
@@ -161,14 +160,5 @@ If you have any questions or need help:
 - Open an issue on GitHub
 - Check the documentation
 - Review the code examples
-
----
-
-**Note**: This is a demonstration application. For production use, you'll need to:
-- Set up proper Spotify API credentials
-- Implement real audio processing
-- Add proper error handling and validation
-- Set up a production database
-- Configure proper security measures
 
 Happy mixing! 🎧✨
