@@ -17,7 +17,6 @@ An AI-powered DJ application that generates seamless mixes from two Spotify trac
 
 - Node.js (v16 or higher)
 - npm or yarn
-- Spotify Developer Account (for production use)
 
 ### Installation
 
