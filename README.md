@@ -4,7 +4,6 @@ An AI-powered DJ application that generates seamless mixes from two Spotify trac
 
 ## ✨ Features
 
-- **Smart Song Search**: Search and select tracks from Spotify's vast library
 - **AI-Powered Mixing**: Intelligent mixing algorithm based on musical theory
 - **Compatibility Analysis**: Real-time analysis of BPM, key, energy, and danceability matching
 - **Interactive Player**: Full-featured audio player with waveform visualization
@@ -108,7 +107,6 @@ The application uses several musical concepts:
 
 ## 🔮 Future Enhancements
 
-- **Real-time Audio Processing**: Actual audio mixing using Web Audio API
 - **Advanced AI Models**: Integration with machine learning models for better mixing
 - **User Accounts**: Save and share your favorite mixes
 - **Social Features**: Share mixes on social media
